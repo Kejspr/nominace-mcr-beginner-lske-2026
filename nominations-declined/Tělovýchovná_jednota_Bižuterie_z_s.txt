@@ -1,0 +1,16 @@
+# Klub: Tělovýchovná jednota Bižuterie, z.s.
+# Ucel: zavodnici, ktere klub NENOMINUJE
+#       i kdyz by mohli postoupit (prepousti slot)
+#       nebo maji nominaci jinde mimo tento system
+#
+# Format - jeden radek = jedna disciplina:
+#   Jmeno Prijmeni - KATEGORIE
+#
+# Minimalne: KARATE AGILITY chlapci U8
+# Presneji: zkopiruj sloupec Kategorie z results-for-excel.csv
+# Priklad:
+#   Vincent Jelínek - KARATE AGILITY chlapci U8
+#
+# Radky zacinajici # se ignoruji.
+# Prazdne radky se ignoruji.
+

@@ -1,0 +1,16 @@
+# Klub: Karate klub Novoborci z.s.
+# Ucel: potvrzene nominace na MCR Beginner
+#       zapis zde zavodniky a discipliny, ktere klub nominuje
+#
+# Format - jeden radek = jedna disciplina:
+#   Jmeno Prijmeni - KATEGORIE
+#
+# Minimalne: KARATE AGILITY chlapci U8
+# Presneji: zkopiruj sloupec Kategorie z results-for-excel.csv
+# Priklad:
+#   Simon Vele - KARATE AGILITY chlapci U8
+#   Nela Skorcikova - KATA BEGINNER divky U8
+#
+# Radky zacinajici # se ignoruji.
+# Prazdne radky se ignoruji.
+
