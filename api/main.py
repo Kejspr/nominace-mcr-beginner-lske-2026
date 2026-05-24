@@ -34,6 +34,11 @@ from nomination_io import (  # noqa: E402
 import xml.etree.ElementTree as ET  # noqa: E402
 from qualification import regional_qualifier_label, tied_position_labels  # noqa: E402
 
+try:
+    from render_env import persist_trainer_auth_env, render_configured  # noqa: E402
+except ImportError:
+    from api.render_env import persist_trainer_auth_env, render_configured  # noqa: E402
+
 app = FastAPI(title="Nominace MCR Beginner API", version="0.1.0")
 
 allowed_origins = [
@@ -64,6 +69,101 @@ class AuthEntry:
     password: str
     club: Optional[str] = None
     email: Optional[str] = None
+
+
+AUTH_OVERRIDES_PATH = ROOT / "data" / "auth_overrides.json"
+
+
+def auth_entry_key(role: str, club: Optional[str] = None) -> str:
+    if role == "stk":
+        return "stk"
+    return f"trener:{club}"
+
+
+def load_auth_overrides() -> Dict[str, str]:
+    if not AUTH_OVERRIDES_PATH.is_file():
+        return {}
+    try:
+        data = json.loads(AUTH_OVERRIDES_PATH.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    return {str(key): str(value) for key, value in data.items()}
+
+
+def save_auth_override(key: str, password: str) -> None:
+    overrides = load_auth_overrides()
+    overrides[key] = password
+    AUTH_OVERRIDES_PATH.parent.mkdir(parents=True, exist_ok=True)
+    AUTH_OVERRIDES_PATH.write_text(
+        json.dumps(overrides, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def clear_auth_override(key: str) -> None:
+    overrides = load_auth_overrides()
+    if key not in overrides:
+        return
+    del overrides[key]
+    if overrides:
+        AUTH_OVERRIDES_PATH.write_text(
+            json.dumps(overrides, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+    elif AUTH_OVERRIDES_PATH.is_file():
+        AUTH_OVERRIDES_PATH.unlink()
+
+
+def load_trainer_auth_items() -> List[dict]:
+    raw = os.environ.get("TRAINER_AUTH", "").strip()
+    if not raw:
+        return []
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=500, detail="TRAINER_AUTH neni platny JSON") from exc
+    if not isinstance(data, list):
+        raise HTTPException(status_code=500, detail="TRAINER_AUTH musi byt seznam")
+    return [dict(item) for item in data if isinstance(item, dict)]
+
+
+def update_trainer_auth_password(role: str, club: Optional[str], new_password: str) -> List[dict]:
+    items = load_trainer_auth_items()
+    if not items:
+        raise HTTPException(status_code=503, detail="TRAINER_AUTH neni nakonfigurovano")
+
+    updated = False
+    for item in items:
+        item_role = str(item.get("role", "trener")).strip().lower()
+        item_club = str(item.get("club", "")).strip() or None
+        if role == "stk" and item_role == "stk":
+            item["password"] = new_password
+            updated = True
+            break
+        if role == "trener" and item_role == "trener" and item_club == club:
+            item["password"] = new_password
+            updated = True
+            break
+
+    if not updated:
+        raise HTTPException(status_code=404, detail="Ucet v TRAINER_AUTH nenalezen")
+    return items
+
+
+def apply_auth_overrides(entries: List[AuthEntry]) -> List[AuthEntry]:
+    overrides = load_auth_overrides()
+    if not overrides:
+        return entries
+    updated: List[AuthEntry] = []
+    for entry in entries:
+        key = auth_entry_key(entry.role, entry.club)
+        password = overrides.get(key, entry.password)
+        updated.append(
+            AuthEntry(role=entry.role, password=password, club=entry.club, email=entry.email)
+        )
+    return updated
 
 
 def club_passwords() -> Dict[str, str]:
@@ -110,11 +210,25 @@ def trainer_auth_entries() -> List[AuthEntry]:
                 )
             )
         if entries:
-            return entries
+            return apply_auth_overrides(entries)
 
     for club, password in club_passwords().items():
         entries.append(AuthEntry(role="trener", password=password, club=club))
-    return entries
+    return apply_auth_overrides(entries)
+
+
+def normalize_email(email: str) -> str:
+    return email.strip().lower()
+
+
+def find_auth_entry_by_email(email: str) -> Optional[AuthEntry]:
+    normalized = normalize_email(email)
+    if not normalized:
+        return None
+    for entry in trainer_auth_entries():
+        if entry.email and normalize_email(entry.email) == normalized:
+            return entry
+    return None
 
 
 def require_session(authorization: Optional[str] = Header(default=None)) -> SessionInfo:
@@ -127,8 +241,39 @@ def require_session(authorization: Optional[str] = Header(default=None)) -> Sess
     return session
 
 
+def require_stk(session: SessionInfo = Depends(require_session)) -> SessionInfo:
+    if session.role != "stk":
+        raise HTTPException(status_code=403, detail="Pouze STK")
+    return session
+
+
+def validate_new_password(new_password: str) -> str:
+    value = new_password.strip()
+    if len(value) < 4:
+        raise HTTPException(status_code=400, detail="Nove heslo je prilis kratke")
+    return value
+
+
+def apply_password_update(role: str, club: Optional[str], new_password: str) -> None:
+    password = validate_new_password(new_password)
+    if not render_configured():
+        raise HTTPException(
+            status_code=503,
+            detail="Trvala zmena hesla neni nakonfigurovana (RENDER_API_KEY, RENDER_SERVICE_ID)",
+        )
+
+    key = auth_entry_key(role, club)
+    items = update_trainer_auth_password(role, club, password)
+    try:
+        persist_trainer_auth_env(items)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    clear_auth_override(key)
+
+
 class LoginRequest(BaseModel):
     password: str
+    email: Optional[str] = None
     club: Optional[str] = None
 
 
@@ -136,6 +281,14 @@ class LoginResponse(BaseModel):
     token: str
     role: Literal["stk", "trener"]
     club: Optional[str] = None
+    email: Optional[str] = None
+
+
+class AuthProfileResponse(BaseModel):
+    email: str
+    role: Literal["stk", "trener"]
+    club: Optional[str] = None
+    label: str
 
 
 class NominationRequest(BaseModel):
@@ -149,6 +302,29 @@ class NominationResponse(BaseModel):
     ok: bool
     postupuje: str
     postup_kraje: str
+
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
+
+
+class ChangePasswordResponse(BaseModel):
+    ok: bool
+
+
+class ResetPasswordRequest(BaseModel):
+    target_role: Literal["stk", "trener"]
+    club: Optional[str] = None
+    new_password: str
+
+
+class ResetPasswordResponse(BaseModel):
+    ok: bool
+
+
+class PasswordHelpResponse(BaseModel):
+    stk_emails: List[str]
 
 
 def nomination_line(firstname: str, lastname: str, category: str) -> str:
@@ -239,26 +415,101 @@ def health() -> dict:
     }
 
 
+@app.get("/api/v1/auth-profile", response_model=AuthProfileResponse)
+def auth_profile(email: str) -> AuthProfileResponse:
+    entry = find_auth_entry_by_email(email)
+    if not entry or not entry.email:
+        raise HTTPException(status_code=404, detail="Ucet neni v systemu")
+    label = "STK" if entry.role == "stk" else (entry.club or "Trener")
+    return AuthProfileResponse(
+        email=entry.email,
+        role=entry.role,
+        club=entry.club,
+        label=label,
+    )
+
+
 @app.post("/api/v1/login", response_model=LoginResponse)
 def login(body: LoginRequest) -> LoginResponse:
-    club = (body.club or "").strip()
-    matches: List[AuthEntry] = []
+    email = (body.email or "").strip()
+    if email:
+        auth = find_auth_entry_by_email(email)
+        if not auth or not secrets.compare_digest(auth.password, body.password):
+            raise HTTPException(status_code=401, detail="Spatne prihlaseni")
+    else:
+        club = (body.club or "").strip()
+        matches: List[AuthEntry] = []
+        for entry in trainer_auth_entries():
+            if not secrets.compare_digest(entry.password, body.password):
+                continue
+            if entry.role == "stk" and not club:
+                matches.append(entry)
+            elif entry.role == "trener" and club and entry.club == club:
+                matches.append(entry)
+        if not matches:
+            raise HTTPException(status_code=401, detail="Spatne prihlaseni")
+        auth = matches[0]
 
-    for entry in trainer_auth_entries():
-        if not secrets.compare_digest(entry.password, body.password):
-            continue
-        if entry.role == "stk" and not club:
-            matches.append(entry)
-        elif entry.role == "trener" and club and entry.club == club:
-            matches.append(entry)
-
-    if not matches:
-        raise HTTPException(status_code=401, detail="Spatne prihlaseni")
-
-    auth = matches[0]
     token = secrets.token_urlsafe(32)
     _sessions[token] = SessionInfo(role=auth.role, club=auth.club)
-    return LoginResponse(token=token, role=auth.role, club=auth.club)
+    return LoginResponse(token=token, role=auth.role, club=auth.club, email=auth.email)
+
+
+@app.get("/api/v1/password-help", response_model=PasswordHelpResponse)
+def password_help() -> PasswordHelpResponse:
+    emails = sorted(
+        {
+            entry.email
+            for entry in trainer_auth_entries()
+            if entry.role == "stk" and entry.email
+        }
+    )
+    return PasswordHelpResponse(stk_emails=emails)
+
+
+@app.post("/api/v1/change-password", response_model=ChangePasswordResponse)
+def change_password(
+    body: ChangePasswordRequest,
+    session: SessionInfo = Depends(require_session),
+) -> ChangePasswordResponse:
+    key = auth_entry_key(session.role, session.club)
+    current_password = None
+    for entry in trainer_auth_entries():
+        if auth_entry_key(entry.role, entry.club) == key:
+            current_password = entry.password
+            break
+
+    if current_password is None or not secrets.compare_digest(current_password, body.old_password):
+        raise HTTPException(status_code=401, detail="Spatne stavajici heslo")
+
+    apply_password_update(session.role, session.club, body.new_password)
+    return ChangePasswordResponse(ok=True)
+
+
+@app.post("/api/v1/reset-password", response_model=ResetPasswordResponse)
+def reset_password(
+    body: ResetPasswordRequest,
+    session: SessionInfo = Depends(require_stk),
+) -> ResetPasswordResponse:
+    del session  # STK session required via dependency
+
+    if body.target_role == "trener":
+        club = (body.club or "").strip()
+        if not club:
+            raise HTTPException(status_code=400, detail="Chybi klub")
+        has_account = any(
+            entry.role == "trener" and entry.club == club for entry in trainer_auth_entries()
+        )
+        if not has_account:
+            raise HTTPException(status_code=404, detail="Klub nema ucet v TRAINER_AUTH")
+        apply_password_update("trener", club, body.new_password)
+    else:
+        has_stk = any(entry.role == "stk" for entry in trainer_auth_entries())
+        if not has_stk:
+            raise HTTPException(status_code=404, detail="STK ucet neni v TRAINER_AUTH")
+        apply_password_update("stk", None, body.new_password)
+
+    return ResetPasswordResponse(ok=True)
 
 
 def can_edit_club(session: SessionInfo, athlete_club: str) -> bool:

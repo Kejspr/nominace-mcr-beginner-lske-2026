@@ -155,13 +155,33 @@ NOMINATION_SCRIPT = """
   const sessionKey = "nominace-mcr-session";
   const filterData = window.PRESENTATION_FILTER_DATA;
 
-  const roleSelect = document.getElementById("login-role");
-  const clubWrap = document.getElementById("login-club-wrap");
-  const clubSelect = document.getElementById("login-club");
+  const loginAccount = document.getElementById("login-account");
   const passwordInput = document.getElementById("login-password");
   const loginButton = document.getElementById("login-submit");
   const logoutButton = document.getElementById("login-logout");
   const loginStatus = document.getElementById("login-status");
+  const changePasswordToggle = document.getElementById("change-password-toggle");
+  const changePasswordPanel = document.getElementById("change-password-panel");
+  const changePasswordOld = document.getElementById("change-password-old");
+  const changePasswordNew = document.getElementById("change-password-new");
+  const changePasswordConfirm = document.getElementById("change-password-confirm");
+  const changePasswordSave = document.getElementById("change-password-save");
+  const changePasswordCancel = document.getElementById("change-password-cancel");
+  const forgotPasswordHint = document.getElementById("forgot-password-hint");
+  const stkContactEmails = document.getElementById("stk-contact-emails");
+  const stkResetToggle = document.getElementById("stk-reset-toggle");
+  const stkResetPanel = document.getElementById("stk-reset-panel");
+  const stkResetRole = document.getElementById("stk-reset-role");
+  const stkResetClubWrap = document.getElementById("stk-reset-club-wrap");
+  const stkResetClub = document.getElementById("stk-reset-club");
+  const stkResetPassword = document.getElementById("stk-reset-password");
+  const stkResetConfirm = document.getElementById("stk-reset-confirm");
+  const stkResetGenerate = document.getElementById("stk-reset-generate");
+  const stkResetSave = document.getElementById("stk-reset-save");
+  const stkResetCancel = document.getElementById("stk-reset-cancel");
+
+  let accessEmail = null;
+  let accessProfile = null;
 
   function loadSession() {
     try {
@@ -201,14 +221,51 @@ NOMINATION_SCRIPT = """
     filterClubSelect.dispatchEvent(new Event("change"));
   }
 
+  function hideChangePasswordPanel() {
+    if (!changePasswordPanel) return;
+    changePasswordPanel.hidden = true;
+    if (changePasswordOld) changePasswordOld.value = "";
+    if (changePasswordNew) changePasswordNew.value = "";
+    if (changePasswordConfirm) changePasswordConfirm.value = "";
+  }
+
+  function hideStkResetPanel() {
+    if (!stkResetPanel) return;
+    stkResetPanel.hidden = true;
+    if (stkResetPassword) stkResetPassword.value = "";
+    if (stkResetConfirm) stkResetConfirm.value = "";
+    if (stkResetClub) stkResetClub.value = "";
+    if (stkResetRole) stkResetRole.value = "trener";
+    toggleStkResetClubField();
+  }
+
+  function toggleStkResetClubField() {
+    if (!stkResetRole || !stkResetClubWrap) return;
+    const isTrener = stkResetRole.value === "trener";
+    stkResetClubWrap.hidden = !isTrener;
+    if (!isTrener && stkResetClub) stkResetClub.value = "";
+  }
+
+  function updateForgotPasswordHint() {
+    if (!forgotPasswordHint) return;
+    const session = loadSession();
+    const loggedIn = Boolean(session && session.token);
+    const isTrener = accessProfile && accessProfile.role === "trener";
+    forgotPasswordHint.hidden = loggedIn || !isTrener;
+  }
+
   function updateLoginUi() {
     const session = loadSession();
     const loggedIn = Boolean(session && session.token);
-    roleSelect.disabled = loggedIn;
-    clubSelect.disabled = loggedIn;
+    if (loginAccount) loginAccount.hidden = loggedIn;
     passwordInput.disabled = loggedIn;
     loginButton.hidden = loggedIn;
+    loginButton.disabled = loggedIn || !accessEmail;
     logoutButton.hidden = !loggedIn;
+    if (changePasswordToggle) changePasswordToggle.hidden = !loggedIn;
+    if (stkResetToggle) stkResetToggle.hidden = !loggedIn || session.role !== "stk";
+    if (!loggedIn) hideChangePasswordPanel();
+    if (!loggedIn || session.role !== "stk") hideStkResetPanel();
 
     if (loggedIn) {
       const label = session.role === "stk"
@@ -219,6 +276,7 @@ NOMINATION_SCRIPT = """
     } else {
       loginStatus.textContent = "";
     }
+    updateForgotPasswordHint();
     updateActionMenus();
   }
 
@@ -323,27 +381,22 @@ NOMINATION_SCRIPT = """
   }
 
   async function login() {
-    const role = roleSelect.value;
-    const club = clubSelect.value;
     const password = passwordInput.value;
+    if (!accessEmail) {
+      alert("Ucet se nenacetl z Cloudflare Access. Otevri stranku pres Workers URL.");
+      return;
+    }
     if (!password) {
       alert("Zadej heslo.");
       return;
     }
-    if (role === "trener" && !club) {
-      alert("Vyber klub.");
-      return;
-    }
-
-    const body = { password: password };
-    if (role === "trener") body.club = club;
 
     loginStatus.textContent = "Prihlasuji...";
     try {
       const response = await fetch(apiUrl + "/api/v1/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ email: accessEmail, password: password }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -353,6 +406,7 @@ NOMINATION_SCRIPT = """
         token: data.token,
         role: data.role,
         club: data.club || null,
+        email: data.email || accessEmail,
       });
       passwordInput.value = "";
     } catch (error) {
@@ -363,24 +417,176 @@ NOMINATION_SCRIPT = """
     updateLoginUi();
   }
 
+  async function changePassword() {
+    const session = loadSession();
+    if (!session || !session.token) return;
+
+    const oldPassword = changePasswordOld ? changePasswordOld.value : "";
+    const newPassword = changePasswordNew ? changePasswordNew.value : "";
+    const confirmPassword = changePasswordConfirm ? changePasswordConfirm.value : "";
+
+    if (!oldPassword || !newPassword) {
+      alert("Vypln stavajici a nove heslo.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      alert("Nove heslo a potvrzeni se neshoduji.");
+      return;
+    }
+
+    loginStatus.textContent = "Menim heslo...";
+    try {
+      const response = await fetch(apiUrl + "/api/v1/change-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + session.token,
+        },
+        body: JSON.stringify({
+          old_password: oldPassword,
+          new_password: newPassword,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(formatApiError(data, response.status));
+      }
+      hideChangePasswordPanel();
+      loginStatus.textContent = "Heslo zmeneno.";
+    } catch (error) {
+      loginStatus.textContent = "Chyba: " + error.message;
+      alert("Zmena hesla selhala: " + error.message);
+    }
+  }
+
+  function generateTemporaryPassword() {
+    const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
+    let value = "";
+    const random = window.crypto && window.crypto.getRandomValues
+      ? window.crypto.getRandomValues(new Uint8Array(10))
+      : null;
+    for (let i = 0; i < 10; i += 1) {
+      const index = random ? random[i] % chars.length : Math.floor(Math.random() * chars.length);
+      value += chars.charAt(index);
+    }
+    return value;
+  }
+
+  async function resetPasswordForAccount() {
+    const session = loadSession();
+    if (!session || session.role !== "stk") return;
+
+    const targetRole = stkResetRole ? stkResetRole.value : "trener";
+    const club = stkResetClub ? stkResetClub.value.trim() : "";
+    const newPassword = stkResetPassword ? stkResetPassword.value : "";
+    const confirmPassword = stkResetConfirm ? stkResetConfirm.value : "";
+
+    if (targetRole === "trener" && !club) {
+      alert("Vyber klub.");
+      return;
+    }
+    if (!newPassword) {
+      alert("Zadej nove heslo.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      alert("Nove heslo a potvrzeni se neshoduji.");
+      return;
+    }
+
+    loginStatus.textContent = "Resetuji heslo...";
+    try {
+      const response = await fetch(apiUrl + "/api/v1/reset-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + session.token,
+        },
+        body: JSON.stringify({
+          target_role: targetRole,
+          club: targetRole === "trener" ? club : null,
+          new_password: newPassword,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(formatApiError(data, response.status));
+      }
+      hideStkResetPanel();
+      const label = targetRole === "stk" ? "STK" : club;
+      loginStatus.textContent = "Heslo resetovano: " + label + ".";
+      alert("Nove heslo pro " + label + ": " + newPassword + "\\n\\nPreddej trenerovi a nech ho heslo zmenit.");
+    } catch (error) {
+      loginStatus.textContent = "Chyba: " + error.message;
+      alert("Reset hesla selhal: " + error.message);
+    }
+  }
+
+  async function loadAccessIdentity() {
+    if (!loginAccount) return;
+    loginAccount.textContent = "Nacitam ucet z Cloudflare Access...";
+    try {
+      const response = await fetch("/cdn-cgi/access/get-identity");
+      if (!response.ok) throw new Error("Cloudflare Access neni k dispozici");
+      const data = await response.json();
+      accessEmail = (data.email || "").trim();
+      if (!accessEmail) throw new Error("Chybi e-mail z Cloudflare Access");
+
+      const profileResp = await fetch(
+        apiUrl + "/api/v1/auth-profile?email=" + encodeURIComponent(accessEmail)
+      );
+      const profileData = await profileResp.json().catch(() => ({}));
+      if (!profileResp.ok) {
+        accessProfile = null;
+        loginAccount.textContent = accessEmail + " – ucet neni v systemu nominaci";
+        return;
+      }
+      accessProfile = profileData;
+      if (accessProfile.role === "stk") {
+        loginAccount.textContent = "STK – vsechny kluby (" + accessEmail + ")";
+      } else {
+        loginAccount.textContent = accessProfile.label + " (" + accessEmail + ")";
+      }
+    } catch (error) {
+      accessEmail = null;
+      accessProfile = null;
+      loginAccount.textContent = "Prihlaseni vyzaduje Cloudflare Access (Workers URL).";
+    }
+    updateForgotPasswordHint();
+  }
+
+  async function loadPasswordHelp() {
+    if (!stkContactEmails) return;
+    try {
+      const response = await fetch(apiUrl + "/api/v1/password-help");
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) return;
+      const emails = Array.isArray(data.stk_emails) ? data.stk_emails : [];
+      if (emails.length) {
+        stkContactEmails.textContent = emails.join(", ");
+      } else {
+        stkContactEmails.textContent = "STK (kontakt v sekci)";
+      }
+    } catch {
+      stkContactEmails.textContent = "STK";
+    }
+  }
+
   function logout() {
     saveSession(null);
     closeAllMenus();
     clearClubFilter();
+    hideChangePasswordPanel();
+    hideStkResetPanel();
     updateLoginUi();
   }
 
-  function toggleClubField() {
-    const isStk = roleSelect.value === "stk";
-    clubWrap.hidden = isStk;
-    if (isStk) clubSelect.value = "";
-  }
-
   filterData.clubs.forEach((club) => {
-    const option = document.createElement("option");
-    option.value = club;
-    option.textContent = club;
-    clubSelect.appendChild(option);
+    if (!stkResetClub) return;
+    const resetOption = document.createElement("option");
+    resetOption.value = club;
+    resetOption.textContent = club;
+    stkResetClub.appendChild(resetOption);
   });
 
   document.querySelectorAll(".nomination-menu-wrap").forEach((wrap) => {
@@ -405,16 +611,41 @@ NOMINATION_SCRIPT = """
   });
 
   document.addEventListener("click", closeAllMenus);
-  roleSelect.addEventListener("change", toggleClubField);
   loginButton.addEventListener("click", login);
   logoutButton.addEventListener("click", logout);
+  if (changePasswordToggle && changePasswordPanel) {
+    changePasswordToggle.addEventListener("click", () => {
+      changePasswordPanel.hidden = !changePasswordPanel.hidden;
+    });
+  }
+  if (changePasswordSave) changePasswordSave.addEventListener("click", changePassword);
+  if (changePasswordCancel) changePasswordCancel.addEventListener("click", hideChangePasswordPanel);
+  if (stkResetToggle && stkResetPanel) {
+    stkResetToggle.addEventListener("click", () => {
+      hideChangePasswordPanel();
+      stkResetPanel.hidden = !stkResetPanel.hidden;
+    });
+  }
+  if (stkResetRole) stkResetRole.addEventListener("change", toggleStkResetClubField);
+  if (stkResetGenerate) {
+    stkResetGenerate.addEventListener("click", () => {
+      const value = generateTemporaryPassword();
+      if (stkResetPassword) stkResetPassword.value = value;
+      if (stkResetConfirm) stkResetConfirm.value = value;
+    });
+  }
+  if (stkResetSave) stkResetSave.addEventListener("click", resetPasswordForAccount);
+  if (stkResetCancel) stkResetCancel.addEventListener("click", hideStkResetPanel);
   passwordInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter") login();
   });
 
   window.updateNominationMenus = updateActionMenus;
-  toggleClubField();
-  updateLoginUi();
+  toggleStkResetClubField();
+  loadAccessIdentity().then(() => {
+    loadPasswordHelp();
+    updateLoginUi();
+  });
 })();
 """
 
@@ -932,6 +1163,28 @@ def generate_html(xml_path: Path, csv_path: Path, output_path: Path) -> None:
     }}
     .nomination-login-row button {{ cursor: pointer; flex: 0; min-width: auto; text-transform: none; }}
     #login-status {{ font-size: 14px; color: #555; align-self: center; flex: 2; min-width: 200px; text-transform: none; font-weight: normal; }}
+    .login-account {{
+      margin: 0 0 12px; font-size: 15px; color: #3949ab; font-weight: 600; line-height: 1.4;
+    }}
+    .login-account[hidden] {{ display: none !important; }}
+    .change-password-panel {{
+      display: flex; flex-wrap: wrap; gap: 16px; align-items: end;
+      margin-top: 14px; padding-top: 14px; border-top: 1px solid #eee;
+    }}
+    .change-password-panel[hidden] {{ display: none !important; }}
+    .change-password-panel label {{
+      display: flex; flex-direction: column; gap: 4px; min-width: 160px; flex: 1;
+      font-size: 12px; font-weight: 600; color: #555; text-transform: uppercase;
+    }}
+    .change-password-panel input,
+    .change-password-panel button {{
+      font: inherit; padding: 8px 10px; border: 1px solid #ccc; border-radius: 8px; background: white;
+    }}
+    .change-password-panel button {{ cursor: pointer; flex: 0; min-width: auto; text-transform: none; }}
+    .forgot-password-hint {{
+      margin: 12px 0 0; font-size: 14px; color: #555; line-height: 1.45;
+    }}
+    .forgot-password-hint[hidden] {{ display: none !important; }}
     .nomination-actions {{ width: 44px; text-align: center; position: relative; }}
     .nomination-actions[hidden] {{ display: none; }}
     .nomination-menu-btn {{
@@ -997,22 +1250,53 @@ def generate_html(xml_path: Path, csv_path: Path, output_path: Path) -> None:
       <p class="filter-status" id="filter-status"></p>
     </section>
     <section class="nomination-login">
+      <p id="login-account" class="login-account">Načítám účet…</p>
       <div class="nomination-login-row">
-        <label>Role
-          <select id="login-role">
-            <option value="trener">Trenér klubu</option>
-            <option value="stk">STK</option>
-          </select>
-        </label>
-        <label id="login-club-wrap">Klub
-          <select id="login-club"><option value="">-- vyber --</option></select>
-        </label>
         <label>Heslo
           <input type="password" id="login-password" autocomplete="current-password">
         </label>
         <button type="button" id="login-submit">Přihlásit</button>
         <button type="button" id="login-logout" hidden>Odhlásit</button>
+        <button type="button" id="change-password-toggle" hidden>Změnit heslo</button>
+        <button type="button" id="stk-reset-toggle" hidden>Reset hesla</button>
         <span id="login-status"></span>
+      </div>
+      <p id="forgot-password-hint" class="forgot-password-hint" hidden>
+        Zapomněli jste heslo? Kontaktujte STK:
+        <strong id="stk-contact-emails">STK</strong>
+      </p>
+      <div id="change-password-panel" class="change-password-panel" hidden>
+        <label>Stávající heslo
+          <input type="password" id="change-password-old" autocomplete="current-password">
+        </label>
+        <label>Nové heslo
+          <input type="password" id="change-password-new" autocomplete="new-password">
+        </label>
+        <label>Potvrzení
+          <input type="password" id="change-password-confirm" autocomplete="new-password">
+        </label>
+        <button type="button" id="change-password-save">Uložit heslo</button>
+        <button type="button" id="change-password-cancel">Zrušit</button>
+      </div>
+      <div id="stk-reset-panel" class="change-password-panel" hidden>
+        <label>Reset pro
+          <select id="stk-reset-role">
+            <option value="trener">Trenér klubu</option>
+            <option value="stk">STK</option>
+          </select>
+        </label>
+        <label id="stk-reset-club-wrap">Klub
+          <select id="stk-reset-club"><option value="">-- vyber --</option></select>
+        </label>
+        <label>Nové heslo
+          <input type="text" id="stk-reset-password" autocomplete="new-password">
+        </label>
+        <label>Potvrzení
+          <input type="text" id="stk-reset-confirm" autocomplete="new-password">
+        </label>
+        <button type="button" id="stk-reset-generate">Vygenerovat</button>
+        <button type="button" id="stk-reset-save">Resetovat heslo</button>
+        <button type="button" id="stk-reset-cancel">Zrušit</button>
       </div>
     </section>
     {''.join(discipline_html)}

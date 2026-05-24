@@ -17,3 +17,4 @@ pracovni/
 # Trenerske udaje (hesla) - jen lokalne
 config/trainers.yaml
 config/sync.env
+data/auth_overrides.json

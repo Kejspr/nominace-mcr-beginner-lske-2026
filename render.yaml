@@ -14,3 +14,7 @@ services:
         sync: false
       - key: TRAINER_AUTH
         sync: false
+      - key: RENDER_API_KEY
+        sync: false
+      - key: RENDER_SERVICE_ID
+        sync: false

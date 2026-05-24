@@ -391,6 +391,9 @@ def sync_render(
             print(f"  - {club}")
         env_updates.append({"key": "CLUB_PASSWORDS", "value": club_json})
 
+    env_updates.append({"key": "RENDER_SERVICE_ID", "value": service_id})
+    print(f"Render RENDER_SERVICE_ID: {service_id}")
+
     if dry_run:
         print("Render: dry-run, nic se neposlalo")
         return
