@@ -25,7 +25,6 @@ from config import (
     EXCEL_CSV,
     NOMINATION_API_URL,
     PRESENTATION_HTML,
-    PRESENTATION_ORIGIN,
     QUALIFYING_PLACES,
 )
 from nomination_io import format_category_name, xml_text
@@ -1217,15 +1216,8 @@ def generate_html(
             "</section>"
         )
 
-    workers_url = escape_html(PRESENTATION_ORIGIN)
     if public:
         login_html = ""
-        public_notice_html = (
-            f'<section class="public-notice">'
-            f"Verejny nahled vysledku. Pro prihlaseni a nominace pouzijte "
-            f'<a href="{workers_url}">{workers_url}</a>.'
-            f"</section>"
-        )
         content_open = '<div id="main-content">'
         tail_scripts = (
             f"  <script>window.PRESENTATION_FILTER_DATA = {filter_json};</script>\n"
@@ -1233,7 +1225,6 @@ def generate_html(
         )
     else:
         login_html = LOGIN_SECTION_HTML
-        public_notice_html = ""
         content_open = '<div id="protected-content" hidden>'
         tail_scripts = (
             f"  <script>window.PRESENTATION_FILTER_DATA = {filter_json};</script>\n"
@@ -1362,11 +1353,6 @@ def generate_html(
       font: inherit; cursor: pointer; border-radius: 6px;
     }}
     .nomination-menu-panel button:hover {{ background: #f5f5f5; }}
-    .public-notice {{
-      background: #e3f2fd; border-radius: 12px; padding: 12px 16px;
-      margin-bottom: 20px; font-size: 14px; color: #1565c0; line-height: 1.45;
-    }}
-    .public-notice a {{ color: #0d47a1; font-weight: 600; }}
   </style>
 </head>
 <body>
@@ -1381,7 +1367,6 @@ def generate_html(
         <span>Kola: {escape_html(rounds)}</span>
       </div>
     </header>
-    {public_notice_html}
     {login_html}
     {content_open}
     <section class="filters">
