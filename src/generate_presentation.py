@@ -206,20 +206,16 @@ NOMINATION_SCRIPT = """
     return row.dataset.club === session.club;
   }
 
-  function applyClubFilterForSession(session) {
-    const filterClubSelect = document.getElementById("filter-club");
-    if (!filterClubSelect || !session) return;
-    if (session.role === "trener" && session.club && filterData.clubs.includes(session.club)) {
-      filterClubSelect.value = session.club;
-      filterClubSelect.dispatchEvent(new Event("change"));
-    }
-  }
-
-  function clearClubFilter() {
-    const filterClubSelect = document.getElementById("filter-club");
-    if (!filterClubSelect) return;
-    filterClubSelect.value = "";
-    filterClubSelect.dispatchEvent(new Event("change"));
+  function highlightMyAthletes(session) {
+    document.querySelectorAll("tbody tr[data-firstname]").forEach((row) => {
+      row.classList.remove("row-my-club");
+    });
+    if (!session || session.role !== "trener" || !session.club) return;
+    document.querySelectorAll("tbody tr[data-firstname]").forEach((row) => {
+      if (row.dataset.club === session.club) {
+        row.classList.add("row-my-club");
+      }
+    });
   }
 
   function hideChangePasswordPanel() {
@@ -276,9 +272,10 @@ NOMINATION_SCRIPT = """
         ? "STK (vsechny kluby)"
         : (session.club || "trener");
       loginStatus.textContent = "Prihlasen: " + label;
-      applyClubFilterForSession(session);
+      highlightMyAthletes(session);
     } else {
       loginStatus.textContent = "";
+      highlightMyAthletes(null);
     }
     updateForgotPasswordHint();
     updateActionMenus();
@@ -622,7 +619,6 @@ NOMINATION_SCRIPT = """
   function logout() {
     saveSession(null);
     closeAllMenus();
-    clearClubFilter();
     hideChangePasswordPanel();
     hideStkResetPanel();
     if (loginAsSelect) loginAsSelect.value = "";
@@ -1185,9 +1181,9 @@ def generate_html(xml_path: Path, csv_path: Path, output_path: Path) -> None:
     .filter-checkboxes input {{ width: 16px; height: 16px; cursor: pointer; }}
     .filter-checkboxes input:disabled + span {{ color: #999; cursor: not-allowed; }}
     .filter-status {{ margin-top: 12px; font-size: 14px; color: #555; }}
-    tr.club-highlight {{ background: #e8f5e9; }}
-    tr.club-highlight td {{ border-bottom-color: #c8e6c9; }}
-    tr.club-highlight td:nth-child(3) {{ font-weight: 600; color: #2e7d32; }}
+    tr.club-highlight, tr.row-my-club {{ background: #e8f5e9; }}
+    tr.club-highlight td, tr.row-my-club td {{ border-bottom-color: #c8e6c9; }}
+    tr.club-highlight td:nth-child(3), tr.row-my-club td:nth-child(3) {{ font-weight: 600; color: #2e7d32; }}
     .legend {{
       background: white; border-radius: 12px; padding: 20px 24px;
       margin-top: 32px; margin-bottom: 24px;
