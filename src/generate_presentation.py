@@ -185,6 +185,22 @@ NOMINATION_SCRIPT = """
     return row.dataset.club === session.club;
   }
 
+  function applyClubFilterForSession(session) {
+    const filterClubSelect = document.getElementById("filter-club");
+    if (!filterClubSelect || !session) return;
+    if (session.role === "trener" && session.club && filterData.clubs.includes(session.club)) {
+      filterClubSelect.value = session.club;
+      filterClubSelect.dispatchEvent(new Event("change"));
+    }
+  }
+
+  function clearClubFilter() {
+    const filterClubSelect = document.getElementById("filter-club");
+    if (!filterClubSelect) return;
+    filterClubSelect.value = "";
+    filterClubSelect.dispatchEvent(new Event("change"));
+  }
+
   function updateLoginUi() {
     const session = loadSession();
     const loggedIn = Boolean(session && session.token);
@@ -199,6 +215,7 @@ NOMINATION_SCRIPT = """
         ? "STK (vsechny kluby)"
         : (session.club || "trener");
       loginStatus.textContent = "Prihlasen: " + label;
+      applyClubFilterForSession(session);
     } else {
       loginStatus.textContent = "";
     }
@@ -343,6 +360,7 @@ NOMINATION_SCRIPT = """
   function logout() {
     saveSession(null);
     closeAllMenus();
+    clearClubFilter();
     updateLoginUi();
   }
 
@@ -769,7 +787,7 @@ def generate_html(xml_path: Path, csv_path: Path, output_path: Path) -> None:
                 '<div class="nomination-menu-panel" hidden>'
                 '<button type="button" data-action="confirm">Potvrdit nominaci</button>'
                 '<button type="button" data-action="decline">Odmítnout</button>'
-                '<button type="button" data-action="clear">Zrušit záznam</button>'
+                '<button type="button" data-action="clear">Zrušit potvrzení / zájem o postup</button>'
                 "</div></div></td>"
             )
 
