@@ -298,6 +298,9 @@ def cf_put_access_policy(
 
 
 def sync_cloudflare(emails: List[str], dry_run: bool) -> None:
+    if os.environ.get("CLOUDFLARE_SYNC", "true").strip().lower() in ("0", "false", "no"):
+        print("Cloudflare: preskoceno (CLOUDFLARE_SYNC=false)")
+        return
     account_id = os.environ.get("CLOUDFLARE_ACCOUNT_ID", "").strip()
     app_id = os.environ.get("CLOUDFLARE_ACCESS_APP_ID", "").strip()
     policy_id = os.environ.get("CLOUDFLARE_ACCESS_POLICY_ID", "").strip()

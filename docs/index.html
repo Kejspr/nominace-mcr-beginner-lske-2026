@@ -78,9 +78,8 @@
     .nomination-login-row button { cursor: pointer; flex: 0; min-width: auto; text-transform: none; }
     #login-status { font-size: 14px; color: #555; align-self: center; flex: 2; min-width: 200px; text-transform: none; font-weight: normal; }
     .login-account {
-      margin: 0 0 12px; font-size: 15px; color: #3949ab; font-weight: 600; line-height: 1.4;
+      margin: 0 0 12px; font-size: 14px; color: #555; line-height: 1.4;
     }
-    .login-account[hidden] { display: none !important; }
     .change-password-panel {
       display: flex; flex-wrap: wrap; gap: 16px; align-items: end;
       margin-top: 14px; padding-top: 14px; border-top: 1px solid #eee;
@@ -164,8 +163,11 @@
       <p class="filter-status" id="filter-status"></p>
     </section>
     <section class="nomination-login">
-      <p id="login-account" class="login-account">Načítám účet…</p>
+      <p class="login-account">Přihlášení heslem STK nebo klubu (bez e-mailového kódu).</p>
       <div class="nomination-login-row">
+        <label>Přihlásit jako
+          <select id="login-as"><option value="">-- vyber --</option></select>
+        </label>
         <label>Heslo
           <input type="password" id="login-password" autocomplete="current-password">
         </label>
@@ -439,7 +441,7 @@
   const sessionKey = "nominace-mcr-session";
   const filterData = window.PRESENTATION_FILTER_DATA;
 
-  const loginAccount = document.getElementById("login-account");
+  const loginAsSelect = document.getElementById("login-as");
   const passwordInput = document.getElementById("login-password");
   const loginButton = document.getElementById("login-submit");
   const logoutButton = document.getElementById("login-logout");
@@ -464,8 +466,7 @@
   const stkResetSave = document.getElementById("stk-reset-save");
   const stkResetCancel = document.getElementById("stk-reset-cancel");
 
-  let accessEmail = null;
-  let accessProfile = null;
+  let loginAccountsLoaded = false;
 
   function loadSession() {
     try {
@@ -534,17 +535,18 @@
     if (!forgotPasswordHint) return;
     const session = loadSession();
     const loggedIn = Boolean(session && session.token);
-    const isTrener = accessProfile && accessProfile.role === "trener";
+    const account = loginAsSelect ? loginAsSelect.value : "";
+    const isTrener = account && account !== "stk";
     forgotPasswordHint.hidden = loggedIn || !isTrener;
   }
 
   function updateLoginUi() {
     const session = loadSession();
     const loggedIn = Boolean(session && session.token);
-    if (loginAccount) loginAccount.hidden = loggedIn;
+    if (loginAsSelect) loginAsSelect.disabled = loggedIn;
     passwordInput.disabled = loggedIn;
     loginButton.hidden = loggedIn;
-    loginButton.disabled = loggedIn || !accessEmail;
+    loginButton.disabled = loggedIn || !loginAsSelect || !loginAsSelect.value;
     logoutButton.hidden = !loggedIn;
     if (changePasswordToggle) changePasswordToggle.hidden = !loggedIn;
     if (stkResetToggle) stkResetToggle.hidden = !loggedIn || session.role !== "stk";
@@ -692,9 +694,10 @@
   }
 
   async function login() {
+    const account = loginAsSelect ? loginAsSelect.value : "";
     const password = passwordInput.value;
-    if (!accessEmail) {
-      alert("Ucet se nenacetl z Cloudflare Access. Otevri stranku pres Workers URL.");
+    if (!account) {
+      alert("Vyber STK nebo klub.");
       return;
     }
     if (!password) {
@@ -702,12 +705,17 @@
       return;
     }
 
+    const body = { password: password };
+    if (account !== "stk") {
+      body.club = account;
+    }
+
     loginStatus.textContent = "Prihlasuji...";
     try {
       const response = await fetch(apiUrl + "/api/v1/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: accessEmail, password: password }),
+        body: JSON.stringify(body),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -717,7 +725,7 @@
         token: data.token,
         role: data.role,
         club: data.club || null,
-        email: data.email || accessEmail,
+        email: data.email || null,
       });
       passwordInput.value = "";
     } catch (error) {
@@ -833,37 +841,25 @@
     }
   }
 
-  async function loadAccessIdentity() {
-    if (!loginAccount) return;
-    loginAccount.textContent = "Nacitam ucet z Cloudflare Access...";
+  async function loadLoginAccounts() {
+    if (!loginAsSelect) return;
     try {
-      const response = await fetch("/cdn-cgi/access/get-identity");
-      if (!response.ok) throw new Error("Cloudflare Access neni k dispozici");
-      const data = await response.json();
-      accessEmail = (data.email || "").trim();
-      if (!accessEmail) throw new Error("Chybi e-mail z Cloudflare Access");
-
-      const profileResp = await fetch(
-        apiUrl + "/api/v1/auth-profile?email=" + encodeURIComponent(accessEmail)
-      );
-      const profileData = await profileResp.json().catch(() => ({}));
-      if (!profileResp.ok) {
-        accessProfile = null;
-        loginAccount.textContent = accessEmail + " – ucet neni v systemu nominaci";
-        return;
-      }
-      accessProfile = profileData;
-      if (accessProfile.role === "stk") {
-        loginAccount.textContent = "STK – vsechny kluby (" + accessEmail + ")";
-      } else {
-        loginAccount.textContent = accessProfile.label + " (" + accessEmail + ")";
-      }
-    } catch (error) {
-      accessEmail = null;
-      accessProfile = null;
-      loginAccount.textContent = "Prihlaseni vyzaduje Cloudflare Access (Workers URL).";
+      const response = await fetch(apiUrl + "/api/v1/login-accounts");
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) return;
+      const accounts = Array.isArray(data.accounts) ? data.accounts : [];
+      loginAsSelect.innerHTML = '<option value="">-- vyber --</option>';
+      accounts.forEach((account) => {
+        const option = document.createElement("option");
+        option.value = account.value;
+        option.textContent = account.label;
+        loginAsSelect.appendChild(option);
+      });
+      loginAccountsLoaded = accounts.length > 0;
+    } catch {
+      loginAccountsLoaded = false;
     }
-    updateForgotPasswordHint();
+    updateLoginUi();
   }
 
   async function loadPasswordHelp() {
@@ -922,6 +918,9 @@
   });
 
   document.addEventListener("click", closeAllMenus);
+  if (loginAsSelect) {
+    loginAsSelect.addEventListener("change", updateForgotPasswordHint);
+  }
   loginButton.addEventListener("click", login);
   logoutButton.addEventListener("click", logout);
   if (changePasswordToggle && changePasswordPanel) {
@@ -953,7 +952,7 @@
 
   window.updateNominationMenus = updateActionMenus;
   toggleStkResetClubField();
-  loadAccessIdentity().then(() => {
+  loadLoginAccounts().then(() => {
     loadPasswordHelp();
     updateLoginUi();
     refreshPostupujeFromApi();

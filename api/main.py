@@ -303,6 +303,16 @@ class PostupujeStateResponse(BaseModel):
     items: List[PostupujeStateItem]
 
 
+class LoginAccountOption(BaseModel):
+    value: str
+    label: str
+    role: Literal["stk", "trener"]
+
+
+class LoginAccountsResponse(BaseModel):
+    accounts: List[LoginAccountOption]
+
+
 class NominationRequest(BaseModel):
     firstname: str
     lastname: str
@@ -434,6 +444,23 @@ def health() -> dict:
         "ok": True,
         "aggregated_xml": AGGREGATED_XML.is_file(),
     }
+
+
+@app.get("/api/v1/login-accounts", response_model=LoginAccountsResponse)
+def login_accounts() -> LoginAccountsResponse:
+    accounts: List[LoginAccountOption] = []
+    seen_clubs: set[str] = set()
+    for entry in trainer_auth_entries():
+        if entry.role == "stk":
+            if not any(item.value == "stk" for item in accounts):
+                accounts.append(LoginAccountOption(value="stk", label="STK", role="stk"))
+        elif entry.role == "trener" and entry.club and entry.club not in seen_clubs:
+            seen_clubs.add(entry.club)
+            accounts.append(
+                LoginAccountOption(value=entry.club, label=entry.club, role="trener")
+            )
+    accounts.sort(key=lambda item: (0 if item.role == "stk" else 1, item.label.lower()))
+    return LoginAccountsResponse(accounts=accounts)
 
 
 @app.get("/api/v1/postupuje-state", response_model=PostupujeStateResponse)
