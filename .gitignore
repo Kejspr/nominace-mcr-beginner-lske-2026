@@ -13,6 +13,7 @@ pracovni/
 
 # IDE
 *.code-workspace
+.wrangler/
 
 # Trenerske udaje (hesla) - jen lokalne
 config/trainers.yaml
