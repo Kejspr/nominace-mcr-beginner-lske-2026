@@ -22,7 +22,7 @@ from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 
-from config import AGGREGATED_XML, BASE_DIR, WORKING_DIR
+from config import AGGREGATED_XML, BASE_DIR, TOURNAMENT_TITLE, WORKING_DIR
 from nomination_io import ensure_nomination_files
 from utils import clubs_equivalent, discover_rounds, list_tournament_xml_files, names_are_swapped
 
@@ -225,7 +225,7 @@ def build_aggregated_xml(all_results: list[dict], output_path: Path) -> dict:
 
     root = ET.Element("tournament")
     ET.SubElement(root, "id").text = "aggregated"
-    ET.SubElement(root, "name").text = "Sjednocene vysledky Krajskeho poharu beginner LSKe 2025/2026"
+    ET.SubElement(root, "name").text = TOURNAMENT_TITLE
     ET.SubElement(root, "source").text = "lske.karate-draw.cz"
     ET.SubElement(root, "date").text = datetime.now().strftime("%Y-%m-%d")
 

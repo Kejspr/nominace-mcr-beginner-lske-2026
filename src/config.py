@@ -39,6 +39,9 @@ PRESENTATION_HTML = BASE_DIR / "results-presentation.html"
 NOMINATION_API_URL = "https://nominace-mcr-beginner-lske-2026.onrender.com"
 PRESENTATION_ORIGIN = "https://nominace-mcr-beginner-lske-2026.jan-kaspar.workers.dev"
 
+# Nadpis HTML / aggregated-results.xml
+TOURNAMENT_TITLE = "V\u00fdsledky Krajsk\u00e9ho poh\u00e1ru beginner LSKe 2025/2026"
+
 # ---------------------------------------------------------------------------
 # Nominace klubu (.txt soubory)
 # ---------------------------------------------------------------------------

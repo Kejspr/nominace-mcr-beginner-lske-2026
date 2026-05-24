@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sjednocene vysledky Krajskeho poharu beginner LSKe 2025/2026</title>
+  <title>Výsledky Krajského poháru beginner LSKe 2025/2026</title>
   <style>
     body { font-family: Segoe UI, sans-serif; margin: 0; background: #eef2ff; color: #222; }
     .container { max-width: 1400px; margin: 0 auto; padding: 24px; }
@@ -123,7 +123,7 @@
 <body>
   <div class="container">
     <header>
-      <h1>Sjednocene vysledky Krajskeho poharu beginner LSKe 2025/2026</h1>
+      <h1>Výsledky Krajského poháru beginner LSKe 2025/2026</h1>
       <div class="stats" id="header-stats">
         <span>Datum: 2026-05-24</span>
         <span>Zavodnici: 253</span>
@@ -991,6 +991,7 @@
   loadLoginAccounts()
     .then(() => validateSession())
     .then(() => {
+      if (loadSession()?.token) resetSavedFilters();
       loadPasswordHelp();
       updateLoginUi();
       return refreshPostupujeFromApi();
