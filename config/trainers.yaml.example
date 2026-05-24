@@ -1,15 +1,37 @@
 # Kopie jako trainers.yaml (lokalne, mimo git).
 # Sync: make sync-trainers  (viz config/sync.env.example)
 #
-# role stk    -> Cloudflare Access + heslo (bez vyberu role na strance)
-# role trener -> Cloudflare Access + heslo, klub z tohoto souboru
+# Prihlaseni na webu: STK nebo klub + heslo. E-mail u trenéra NENI potreba.
+# E-mail je volitelny (STK kontakt / Cloudflare Access pri CLOUDFLARE_SYNC=true).
+#
+# Vsechny kluby z XML najednou:
+#   make trainers-init
 
 trainers:
-  - email: stk@example.com
-    role: stk
+  - role: stk
     password: "heslo-stk"
+    # email: stk@example.com   # volitelne
 
-  - email: trener@klub.cz
-    role: trener
+  - role: trener
     club: "GRYF z.s."
+    password: "heslo-klubu"
+
+  - role: trener
+    club: "Karate ToJo, spolek"
+    password: "heslo-klubu"
+
+  - role: trener
+    club: "Karate klub Novoborci z.s."
+    password: "heslo-klubu"
+
+  - role: trener
+    club: "SK KARATE - SHOTOKAN LIBEREC, z.s."
+    password: "heslo-klubu"
+
+  - role: trener
+    club: "Shotokan Sport Centrum Česká Lípa z.s."
+    password: "heslo-klubu"
+
+  - role: trener
+    club: "Tělovýchovná jednota Bižuterie, z.s."
     password: "heslo-klubu"

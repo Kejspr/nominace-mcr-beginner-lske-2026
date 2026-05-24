@@ -5,7 +5,7 @@ DOCS = docs
 PAGES_URL = https://kejspr.github.io/nominace-mcr-beginner-lske-2026/
 PUBLISH_MSG ?= Aktualizace vysledku
 
-.PHONY: help all validate fix aggregate excel verify-nominations presentation pages publish sync-trainers
+.PHONY: help all validate fix aggregate excel verify-nominations presentation pages publish sync-trainers trainers-init
 
 help:
 	@echo "Nominace MCR Beginner - LSKe"
@@ -22,6 +22,7 @@ help:
 	@echo "  make pages                HTML -> docs/index.html (GitHub Pages)"
 	@echo "  make publish              all + verify + pages + git push (GitHub Pages)"
 	@echo "  make sync-trainers        trainers.yaml -> Cloudflare Access + Render"
+	@echo "  make trainers-init        doplni trainers.yaml o vsechny kluby z XML"
 	@echo ""
 	@echo "Adresare:"
 	@echo "  src/                    python skripty"
@@ -75,5 +76,8 @@ publish: all verify-nominations pages
 sync-trainers:
 	$(PYTHON) -m pip install -q certifi 2>/dev/null || true
 	$(PYTHON) tools/sync_trainers.py
+
+trainers-init:
+	$(PYTHON) tools/generate_trainers_yaml.py
 
 .DEFAULT_GOAL := all
