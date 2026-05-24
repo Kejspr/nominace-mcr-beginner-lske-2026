@@ -379,6 +379,7 @@
   }
 
   window.applyPresentationFilters = applyFilters;
+  window.resetPresentationFilters = resetFilters;
 
   function resetFilters() {
     clubSelect.value = "";
@@ -540,6 +541,12 @@
     const account = loginAsSelect ? loginAsSelect.value : "";
     const isTrener = account && account !== "stk";
     forgotPasswordHint.hidden = loggedIn || !isTrener;
+  }
+
+  function resetSavedFilters() {
+    if (typeof window.resetPresentationFilters === "function") {
+      window.resetPresentationFilters();
+    }
   }
 
   function updateLoginUi() {
@@ -754,6 +761,7 @@
         email: data.email || null,
       });
       passwordInput.value = "";
+      resetSavedFilters();
       await refreshPostupujeFromApi();
     } catch (error) {
       loginStatus.textContent = "Chyba: " + error.message;
@@ -912,6 +920,7 @@
     hideChangePasswordPanel();
     hideStkResetPanel();
     if (loginAsSelect) loginAsSelect.value = "";
+    resetSavedFilters();
     updateLoginUi();
   }
 

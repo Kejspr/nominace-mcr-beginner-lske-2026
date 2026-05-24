@@ -252,6 +252,12 @@ NOMINATION_SCRIPT = """
     forgotPasswordHint.hidden = loggedIn || !isTrener;
   }
 
+  function resetSavedFilters() {
+    if (typeof window.resetPresentationFilters === "function") {
+      window.resetPresentationFilters();
+    }
+  }
+
   function updateLoginUi() {
     const session = loadSession();
     const loggedIn = Boolean(session && session.token);
@@ -464,6 +470,7 @@ NOMINATION_SCRIPT = """
         email: data.email || null,
       });
       passwordInput.value = "";
+      resetSavedFilters();
       await refreshPostupujeFromApi();
     } catch (error) {
       loginStatus.textContent = "Chyba: " + error.message;
@@ -622,6 +629,7 @@ NOMINATION_SCRIPT = """
     hideChangePasswordPanel();
     hideStkResetPanel();
     if (loginAsSelect) loginAsSelect.value = "";
+    resetSavedFilters();
     updateLoginUi();
   }
 
@@ -855,6 +863,7 @@ FILTER_SCRIPT = """
   }
 
   window.applyPresentationFilters = applyFilters;
+  window.resetPresentationFilters = resetFilters;
 
   function resetFilters() {
     clubSelect.value = "";
