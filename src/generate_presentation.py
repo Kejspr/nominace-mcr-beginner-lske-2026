@@ -224,15 +224,21 @@ NOMINATION_SCRIPT = """
 
   function updateActionMenus() {
     const session = loadSession();
+    const loggedIn = Boolean(session && session.token);
+
     document.querySelectorAll("tbody tr[data-firstname]").forEach((row) => {
-      const button = row.querySelector(".nomination-menu-btn");
-      if (!button) return;
+      const cell = row.querySelector(".nomination-actions");
+      const wrap = row.querySelector(".nomination-menu-wrap");
+      if (!cell) return;
       const allowed = canEditRow(row, session);
-      button.disabled = !allowed;
-      button.classList.toggle("is-active", allowed);
-      if (!allowed) {
-        closeMenu(row.querySelector(".nomination-menu-wrap"));
+      cell.hidden = !allowed;
+      if (!allowed && wrap) {
+        closeMenu(wrap);
       }
+    });
+
+    document.querySelectorAll("table thead th:last-child").forEach((header) => {
+      header.hidden = !loggedIn;
     });
   }
 
@@ -384,7 +390,6 @@ NOMINATION_SCRIPT = """
 
     button.addEventListener("click", (event) => {
       event.stopPropagation();
-      if (button.disabled) return;
       const willOpen = panel.hidden;
       closeAllMenus();
       panel.hidden = !willOpen;
@@ -781,7 +786,7 @@ def generate_html(xml_path: Path, csv_path: Path, output_path: Path) -> None:
             action_cell = (
                 '<td class="nomination-actions">'
                 '<div class="nomination-menu-wrap">'
-                '<button type="button" class="nomination-menu-btn" disabled '
+                '<button type="button" class="nomination-menu-btn" '
                 'aria-label="Akce nominace" aria-expanded="false" '
                 'aria-haspopup="true">&#8942;</button>'
                 '<div class="nomination-menu-panel" hidden>'
@@ -928,14 +933,12 @@ def generate_html(xml_path: Path, csv_path: Path, output_path: Path) -> None:
     .nomination-login-row button {{ cursor: pointer; flex: 0; min-width: auto; text-transform: none; }}
     #login-status {{ font-size: 14px; color: #555; align-self: center; flex: 2; min-width: 200px; text-transform: none; font-weight: normal; }}
     .nomination-actions {{ width: 44px; text-align: center; position: relative; }}
+    .nomination-actions[hidden] {{ display: none; }}
     .nomination-menu-btn {{
-      width: 32px; height: 32px; border: 1px solid #ddd; border-radius: 8px;
-      background: #fafafa; color: #888; cursor: not-allowed; font-size: 18px; line-height: 1;
+      width: 32px; height: 32px; border: 1px solid #c5cae9; border-radius: 8px;
+      background: #eef2ff; color: #3949ab; cursor: pointer; font-size: 18px; line-height: 1;
     }}
-    .nomination-menu-btn.is-active {{
-      cursor: pointer; color: #3949ab; border-color: #c5cae9; background: #eef2ff;
-    }}
-    .nomination-menu-btn.is-active:hover {{ background: #e8eaf6; }}
+    .nomination-menu-btn:hover {{ background: #e8eaf6; }}
     .nomination-menu-panel {{
       position: absolute; right: 0; top: calc(100% + 4px); z-index: 20;
       min-width: 180px; background: white; border: 1px solid #ddd; border-radius: 8px;
