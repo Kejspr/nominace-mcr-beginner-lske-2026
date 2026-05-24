@@ -419,6 +419,12 @@ NOMINATION_SCRIPT = """
         body: JSON.stringify(payload),
       });
       const data = await response.json().catch(() => ({}));
+      if (response.status === 401) {
+        saveSession(null);
+        updateLoginUi();
+        alert("Platnost prihlaseni vyprsela. Prihlaste se znovu.");
+        return;
+      }
       if (!response.ok) {
         throw new Error(formatApiError(data, response.status));
       }
@@ -700,6 +706,7 @@ NOMINATION_SCRIPT = """
   loadLoginAccounts()
     .then(() => validateSession())
     .then(() => {
+      if (loadSession()?.token) resetSavedFilters();
       loadPasswordHelp();
       updateLoginUi();
       return refreshPostupujeFromApi();

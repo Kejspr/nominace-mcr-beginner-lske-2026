@@ -36,8 +36,10 @@ from qualification import regional_qualifier_label, tied_position_labels  # noqa
 
 try:
     from render_env import persist_trainer_auth_env, render_configured  # noqa: E402
+    from session_tokens import decode_session_token, encode_session_token  # noqa: E402
 except ImportError:
     from api.render_env import persist_trainer_auth_env, render_configured  # noqa: E402
+    from api.session_tokens import decode_session_token, encode_session_token  # noqa: E402
 
 app = FastAPI(title="Nominace MCR Beginner API", version="0.1.0")
 
@@ -53,9 +55,6 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
-
-_sessions: Dict[str, "SessionInfo"] = {}
-
 
 @dataclass(frozen=True)
 class SessionInfo:
@@ -235,10 +234,10 @@ def require_session(authorization: Optional[str] = Header(default=None)) -> Sess
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Chybi token")
     token = authorization.removeprefix("Bearer ").strip()
-    session = _sessions.get(token)
-    if not session:
+    payload = decode_session_token(token)
+    if not payload:
         raise HTTPException(status_code=401, detail="Neplatny token")
-    return session
+    return SessionInfo(role=payload["role"], club=payload["club"])
 
 
 def require_stk(session: SessionInfo = Depends(require_session)) -> SessionInfo:
@@ -511,8 +510,7 @@ def login(body: LoginRequest) -> LoginResponse:
             raise HTTPException(status_code=401, detail="Spatne prihlaseni")
         auth = matches[0]
 
-    token = secrets.token_urlsafe(32)
-    _sessions[token] = SessionInfo(role=auth.role, club=auth.club)
+    token = encode_session_token(role=auth.role, club=auth.club)
     return LoginResponse(token=token, role=auth.role, club=auth.club, email=auth.email)
 
 
