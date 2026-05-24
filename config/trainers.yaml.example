@@ -1,0 +1,15 @@
+# Kopie jako trainers.yaml (lokalne, mimo git).
+# Sync: make sync-trainers  (viz config/sync.env.example)
+#
+# role stk    -> Cloudflare Access + login bez klubu, editace vsech klubu v API
+# role trener -> Cloudflare Access + login klub+heslo, editace jen sveho klubu
+
+trainers:
+  - email: stk@example.com
+    role: stk
+    password: "heslo-stk"
+
+  - email: trener@klub.cz
+    role: trener
+    club: "GRYF z.s."
+    password: "heslo-klubu"

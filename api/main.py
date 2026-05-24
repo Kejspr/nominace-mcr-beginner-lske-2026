@@ -6,8 +6,9 @@ import json
 import os
 import secrets
 import sys
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Literal, Optional
+from typing import Dict, List, Literal, Optional
 
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -44,7 +45,21 @@ if allowed_origins:
         allow_headers=["*"],
     )
 
-_sessions: Dict[str, str] = {}
+_sessions: Dict[str, "SessionInfo"] = {}
+
+
+@dataclass(frozen=True)
+class SessionInfo:
+    role: Literal["stk", "trener"]
+    club: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class AuthEntry:
+    role: Literal["stk", "trener"]
+    password: str
+    club: Optional[str] = None
+    email: Optional[str] = None
 
 
 def club_passwords() -> Dict[str, str]:
@@ -58,24 +73,65 @@ def club_passwords() -> Dict[str, str]:
     return {str(club): str(password) for club, password in data.items()}
 
 
-def require_token(authorization: Optional[str] = Header(default=None)) -> str:
+def trainer_auth_entries() -> List[AuthEntry]:
+    raw = os.environ.get("TRAINER_AUTH", "").strip()
+    entries: List[AuthEntry] = []
+
+    if raw:
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise HTTPException(status_code=500, detail="TRAINER_AUTH neni platny JSON") from exc
+        if not isinstance(data, list):
+            raise HTTPException(status_code=500, detail="TRAINER_AUTH musi byt seznam")
+        for item in data:
+            if not isinstance(item, dict):
+                continue
+            password = item.get("password")
+            if password is None:
+                continue
+            role = str(item.get("role", "trener")).strip().lower()
+            if role not in ("stk", "trener"):
+                role = "trener"
+            club = str(item.get("club", "")).strip() or None
+            email = str(item.get("email", "")).strip() or None
+            if role == "trener" and not club:
+                continue
+            entries.append(
+                AuthEntry(
+                    role=role,  # type: ignore[arg-type]
+                    password=str(password),
+                    club=club,
+                    email=email,
+                )
+            )
+        if entries:
+            return entries
+
+    for club, password in club_passwords().items():
+        entries.append(AuthEntry(role="trener", password=password, club=club))
+    return entries
+
+
+def require_session(authorization: Optional[str] = Header(default=None)) -> SessionInfo:
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Chybi token")
     token = authorization.removeprefix("Bearer ").strip()
-    club = _sessions.get(token)
-    if not club:
+    session = _sessions.get(token)
+    if not session:
         raise HTTPException(status_code=401, detail="Neplatny token")
-    return club
+    return session
 
 
 class LoginRequest(BaseModel):
-    club: str
     password: str
+    club: Optional[str] = None
 
 
 class LoginResponse(BaseModel):
     token: str
-    club: str
+    role: Literal["stk", "trener"]
+    club: Optional[str] = None
 
 
 class NominationRequest(BaseModel):
@@ -181,19 +237,36 @@ def health() -> dict:
 
 @app.post("/api/v1/login", response_model=LoginResponse)
 def login(body: LoginRequest) -> LoginResponse:
-    passwords = club_passwords()
-    expected = passwords.get(body.club)
-    if expected is None or not secrets.compare_digest(expected, body.password):
-        raise HTTPException(status_code=401, detail="Spatny klub nebo heslo")
+    club = (body.club or "").strip()
+    matches: List[AuthEntry] = []
+
+    for entry in trainer_auth_entries():
+        if not secrets.compare_digest(entry.password, body.password):
+            continue
+        if entry.role == "stk" and not club:
+            matches.append(entry)
+        elif entry.role == "trener" and club and entry.club == club:
+            matches.append(entry)
+
+    if not matches:
+        raise HTTPException(status_code=401, detail="Spatne prihlaseni")
+
+    auth = matches[0]
     token = secrets.token_urlsafe(32)
-    _sessions[token] = body.club
-    return LoginResponse(token=token, club=body.club)
+    _sessions[token] = SessionInfo(role=auth.role, club=auth.club)
+    return LoginResponse(token=token, role=auth.role, club=auth.club)
+
+
+def can_edit_club(session: SessionInfo, athlete_club: str) -> bool:
+    if session.role == "stk":
+        return True
+    return session.club == athlete_club
 
 
 @app.post("/api/v1/nomination", response_model=NominationResponse)
 def set_nomination(
     body: NominationRequest,
-    club: str = Depends(require_token),
+    session: SessionInfo = Depends(require_session),
 ) -> NominationResponse:
     if not AGGREGATED_XML.is_file():
         raise HTTPException(status_code=503, detail="Chybi aggregated-results.xml na serveru")
@@ -215,11 +288,14 @@ def set_nomination(
         if athlete_club:
             break
 
-    if athlete_club != club:
-        raise HTTPException(status_code=403, detail="Zavodnik nepatri do vaseho klubu")
+    if not athlete_club:
+        raise HTTPException(status_code=404, detail="Zavodnik v kategorii nenalezen")
 
-    confirm_path = NOMINATIONS_DIR / club_nomination_filename(club)
-    decline_path = NOMINATIONS_DECLINED_DIR / club_nomination_filename(club)
+    if not can_edit_club(session, athlete_club):
+        raise HTTPException(status_code=403, detail="Trener muze editovat jen svuj klub")
+
+    confirm_path = NOMINATIONS_DIR / club_nomination_filename(athlete_club)
+    decline_path = NOMINATIONS_DECLINED_DIR / club_nomination_filename(athlete_club)
     line = nomination_line(body.firstname, body.lastname, body.category)
 
     confirm_lines = read_nomination_lines(confirm_path)

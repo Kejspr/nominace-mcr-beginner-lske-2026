@@ -13,3 +13,7 @@ pracovni/
 
 # IDE
 *.code-workspace
+
+# Trenerske udaje (hesla) - jen lokalne
+config/trainers.yaml
+config/sync.env

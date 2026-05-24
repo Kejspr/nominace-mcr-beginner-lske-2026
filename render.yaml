@@ -12,3 +12,5 @@ services:
         value: https://nominace-mcr-beginner-lske-2026.jan-kaspar.workers.dev
       - key: CLUB_PASSWORDS
         sync: false
+      - key: TRAINER_AUTH
+        sync: false
