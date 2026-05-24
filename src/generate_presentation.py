@@ -327,6 +327,33 @@ NOMINATION_SCRIPT = """
     }
   }
 
+  function findResultRow(firstname, lastname, category) {
+    return Array.from(document.querySelectorAll("tbody tr[data-firstname]")).find(
+      (row) =>
+        row.dataset.firstname === firstname &&
+        row.dataset.lastname === lastname &&
+        row.dataset.category === category
+    );
+  }
+
+  async function refreshPostupujeFromApi() {
+    try {
+      const response = await fetch(apiUrl + "/api/v1/postupuje-state");
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) return;
+      const items = Array.isArray(data.items) ? data.items : [];
+      items.forEach((item) => {
+        const row = findResultRow(item.firstname, item.lastname, item.category);
+        if (row) setRowPostup(row, item.postupuje, item.postup_kraje);
+      });
+      if (typeof window.applyPresentationFilters === "function") {
+        window.applyPresentationFilters();
+      }
+    } catch {
+      // API nedostupne, zustane stav z HTML
+    }
+  }
+
   function formatApiError(data, status) {
     if (typeof data.detail === "string") return data.detail;
     if (Array.isArray(data.detail)) {
@@ -645,6 +672,7 @@ NOMINATION_SCRIPT = """
   loadAccessIdentity().then(() => {
     loadPasswordHelp();
     updateLoginUi();
+    refreshPostupujeFromApi();
   });
 })();
 """

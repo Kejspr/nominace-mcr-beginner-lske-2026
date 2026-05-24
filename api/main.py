@@ -291,6 +291,18 @@ class AuthProfileResponse(BaseModel):
     label: str
 
 
+class PostupujeStateItem(BaseModel):
+    firstname: str
+    lastname: str
+    category: str
+    postupuje: str
+    postup_kraje: str
+
+
+class PostupujeStateResponse(BaseModel):
+    items: List[PostupujeStateItem]
+
+
 class NominationRequest(BaseModel):
     firstname: str
     lastname: str
@@ -376,34 +388,43 @@ def append_line(lines: list[str], line: str) -> list[str]:
     return lines + [line]
 
 
-def lookup_postupuje(firstname: str, lastname: str, category_display: str) -> tuple[str, str]:
+def build_postupuje_state_items() -> List[PostupujeStateItem]:
     if not AGGREGATED_XML.is_file():
         raise HTTPException(status_code=503, detail="Chybi aggregated-results.xml")
 
     root = ET.parse(AGGREGATED_XML).getroot()
     nomination_data = load_nominations(AGGREGATED_XML, write_log=False)
     postupuje_map = compute_postupuje_map(root, nomination_data)
+    items: List[PostupujeStateItem] = []
 
     for category in root.findall("category"):
         disciplina = xml_text(category, "disciplina")
         kategorie1 = xml_text(category, "kategorie1")
         kategorie2 = xml_text(category, "kategorie2")
         display = format_category_name(disciplina, kategorie1, kategorie2)
-        if display != category_display:
-            continue
         positions = [xml_text(result, "position") for result in category.findall("result")]
         tied = tied_position_labels(positions)
         for result in category.findall("result"):
             fn = xml_text(result, "firstname")
             ln = xml_text(result, "lastname")
-            if fn != firstname or ln != lastname:
-                continue
             key = nomination_key(fn, ln, disciplina, kategorie1, kategorie2)
-            postupuje = postupuje_map.get(key, "NE")
             position = xml_text(result, "position")
-            postup_kraje = regional_qualifier_label(position, tied)
-            return postupuje, postup_kraje
+            items.append(
+                PostupujeStateItem(
+                    firstname=fn,
+                    lastname=ln,
+                    category=display,
+                    postupuje=postupuje_map.get(key, "NE"),
+                    postup_kraje=regional_qualifier_label(position, tied),
+                )
+            )
+    return items
 
+
+def lookup_postupuje(firstname: str, lastname: str, category_display: str) -> tuple[str, str]:
+    for item in build_postupuje_state_items():
+        if item.firstname == firstname and item.lastname == lastname and item.category == category_display:
+            return item.postupuje, item.postup_kraje
     raise HTTPException(status_code=404, detail="Zavodnik v kategorii nenalezen")
 
 
@@ -413,6 +434,11 @@ def health() -> dict:
         "ok": True,
         "aggregated_xml": AGGREGATED_XML.is_file(),
     }
+
+
+@app.get("/api/v1/postupuje-state", response_model=PostupujeStateResponse)
+def postupuje_state() -> PostupujeStateResponse:
+    return PostupujeStateResponse(items=build_postupuje_state_items())
 
 
 @app.get("/api/v1/auth-profile", response_model=AuthProfileResponse)
