@@ -17,7 +17,12 @@ from pydantic import BaseModel, Field
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from config import AGGREGATED_XML, NOMINATIONS_DECLINED_DIR, NOMINATIONS_DIR  # noqa: E402
+from config import (  # noqa: E402
+    AGGREGATED_XML,
+    NOMINATIONS_DECLINED_DIR,
+    NOMINATIONS_DIR,
+    PRESENTATION_ORIGIN,
+)
 from nomination_io import (  # noqa: E402
     club_nomination_filename,
     compute_postupuje_map,
@@ -33,17 +38,16 @@ app = FastAPI(title="Nominace MCR Beginner API", version="0.1.0")
 
 allowed_origins = [
     origin.strip()
-    for origin in os.environ.get("ALLOWED_ORIGINS", "").split(",")
+    for origin in os.environ.get("ALLOWED_ORIGINS", PRESENTATION_ORIGIN).split(",")
     if origin.strip()
 ]
-if allowed_origins:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=allowed_origins,
-        allow_credentials=True,
-        allow_methods=["GET", "POST", "OPTIONS"],
-        allow_headers=["*"],
-    )
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["*"],
+)
 
 _sessions: Dict[str, "SessionInfo"] = {}
 

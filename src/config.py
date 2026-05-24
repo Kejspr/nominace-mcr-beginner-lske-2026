@@ -37,6 +37,7 @@ PRESENTATION_HTML = BASE_DIR / "results-presentation.html"
 
 # Render API pro klikaci nominace z HTML (Cloudflare Workers + CORS)
 NOMINATION_API_URL = "https://nominace-mcr-beginner-lske-2026.onrender.com"
+PRESENTATION_ORIGIN = "https://nominace-mcr-beginner-lske-2026.jan-kaspar.workers.dev"
 
 # ---------------------------------------------------------------------------
 # Nominace klubu (.txt soubory)
