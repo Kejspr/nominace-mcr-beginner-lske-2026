@@ -25,6 +25,7 @@ from config import (
     EXCEL_CSV,
     NOMINATION_API_URL,
     PRESENTATION_HTML,
+    PRESENTATION_ORIGIN,
     QUALIFYING_PLACES,
 )
 from nomination_io import format_category_name, xml_text
@@ -147,6 +148,76 @@ LEGEND_LINK_POSTUPUJE = (
     'title="Vysvětlení sloupce Postupuje">Postupuje</a>'
 )
 TABLE_HEAD_POSTUP = f"<th>{LEGEND_LINK_KRAJE}</th><th>{LEGEND_LINK_POSTUPUJE}</th><th></th>"
+TABLE_HEAD_POSTUP_PUBLIC = f"<th>{LEGEND_LINK_KRAJE}</th><th>{LEGEND_LINK_POSTUPUJE}</th>"
+
+NOMINATION_ACTION_CELL = (
+    '<td class="nomination-actions">'
+    '<div class="nomination-menu-wrap">'
+    '<button type="button" class="nomination-menu-btn" '
+    'aria-label="Akce nominace" aria-expanded="false" '
+    'aria-haspopup="true">&#8942;</button>'
+    '<div class="nomination-menu-panel" hidden>'
+    '<button type="button" data-action="confirm">Potvrdit nominaci</button>'
+    '<button type="button" data-action="decline">Odmítnout</button>'
+    '<button type="button" data-action="clear">Zrušit potvrzení / zájem o postup</button>'
+    "</div></div></td>"
+)
+
+LOGIN_SECTION_HTML = """
+    <section class="nomination-login">
+      <p class="login-account">Pro zobrazeni vysledku se prihlaste heslem STK nebo klubu.</p>
+      <div class="nomination-login-row">
+        <label>Přihlásit jako
+          <select id="login-as"><option value="">-- vyber --</option></select>
+        </label>
+        <label>Heslo
+          <input type="password" id="login-password" autocomplete="current-password">
+        </label>
+        <button type="button" id="login-submit">Přihlásit</button>
+        <button type="button" id="login-logout" hidden>Odhlásit</button>
+        <button type="button" id="change-password-toggle" hidden>Změnit heslo</button>
+        <button type="button" id="stk-reset-toggle" hidden>Reset hesla</button>
+        <span id="login-status"></span>
+      </div>
+      <p id="forgot-password-hint" class="forgot-password-hint" hidden>
+        Zapomněli jste heslo? Kontaktujte STK:
+        <strong id="stk-contact-emails">STK</strong>
+      </p>
+      <div id="change-password-panel" class="change-password-panel" hidden>
+        <label>Stávající heslo
+          <input type="password" id="change-password-old" autocomplete="current-password">
+        </label>
+        <label>Nové heslo
+          <input type="password" id="change-password-new" autocomplete="new-password">
+        </label>
+        <label>Potvrzení
+          <input type="password" id="change-password-confirm" autocomplete="new-password">
+        </label>
+        <button type="button" id="change-password-save">Uložit heslo</button>
+        <button type="button" id="change-password-cancel">Zrušit</button>
+      </div>
+      <div id="stk-reset-panel" class="change-password-panel" hidden>
+        <label>Reset pro
+          <select id="stk-reset-role">
+            <option value="trener">Trenér klubu</option>
+            <option value="stk">STK</option>
+          </select>
+        </label>
+        <label id="stk-reset-club-wrap">Klub
+          <select id="stk-reset-club"><option value="">-- vyber --</option></select>
+        </label>
+        <label>Nové heslo
+          <input type="text" id="stk-reset-password" autocomplete="new-password">
+        </label>
+        <label>Potvrzení
+          <input type="text" id="stk-reset-confirm" autocomplete="new-password">
+        </label>
+        <button type="button" id="stk-reset-generate">Vygenerovat</button>
+        <button type="button" id="stk-reset-save">Resetovat heslo</button>
+        <button type="button" id="stk-reset-cancel">Zrušit</button>
+      </div>
+    </section>
+"""
 
 
 NOMINATION_SCRIPT = """
@@ -983,7 +1054,14 @@ def build_legend_html(qualifying_places: int) -> str:
     )
 
 
-def generate_html(xml_path: Path, csv_path: Path, output_path: Path) -> None:
+def generate_html(
+    xml_path: Path,
+    csv_path: Path,
+    output_path: Path,
+    *,
+    mode: str = "private",
+) -> None:
+    public = mode == "public"
     root = ET.parse(xml_path).getroot()
     _, csv_rows = load_csv_rows(csv_path)
     enrichment = build_xml_enrichment(xml_path)
@@ -1080,18 +1158,7 @@ def generate_html(xml_path: Path, csv_path: Path, output_path: Path) -> None:
 
             rounds_text = extra.get("rounds") or rounds_from_csv_row(row, round_columns)
 
-            action_cell = (
-                '<td class="nomination-actions">'
-                '<div class="nomination-menu-wrap">'
-                '<button type="button" class="nomination-menu-btn" '
-                'aria-label="Akce nominace" aria-expanded="false" '
-                'aria-haspopup="true">&#8942;</button>'
-                '<div class="nomination-menu-panel" hidden>'
-                '<button type="button" data-action="confirm">Potvrdit nominaci</button>'
-                '<button type="button" data-action="decline">Odmítnout</button>'
-                '<button type="button" data-action="clear">Zrušit potvrzení / zájem o postup</button>'
-                "</div></div></td>"
-            )
+            action_cell = "" if public else NOMINATION_ACTION_CELL
 
             rows_html.append(
                 f"<tr data-club=\"{escape_html(club)}\""
@@ -1131,7 +1198,7 @@ def generate_html(xml_path: Path, csv_path: Path, output_path: Path) -> None:
             "<thead><tr>"
             "<th>Poz.</th><th>Jmeno</th><th>Klub</th><th>Body</th><th>Medaile</th>"
             "<th>Kola</th>"
-            f"{TABLE_HEAD_POSTUP}"
+            f"{TABLE_HEAD_POSTUP_PUBLIC if public else TABLE_HEAD_POSTUP}"
             "</tr></thead>"
             f"<tbody>{''.join(rows_html)}</tbody></table></section>"
         )
@@ -1148,6 +1215,31 @@ def generate_html(xml_path: Path, csv_path: Path, output_path: Path) -> None:
             f"<h2>{escape_html(disciplina)}</h2>"
             f"{''.join(blocks)}"
             "</section>"
+        )
+
+    workers_url = escape_html(PRESENTATION_ORIGIN)
+    if public:
+        login_html = ""
+        public_notice_html = (
+            f'<section class="public-notice">'
+            f"Verejny nahled vysledku. Pro prihlaseni a nominace pouzijte "
+            f'<a href="{workers_url}">{workers_url}</a>.'
+            f"</section>"
+        )
+        content_open = '<div id="main-content">'
+        tail_scripts = (
+            f"  <script>window.PRESENTATION_FILTER_DATA = {filter_json};</script>\n"
+            f"  <script>{FILTER_SCRIPT}</script>"
+        )
+    else:
+        login_html = LOGIN_SECTION_HTML
+        public_notice_html = ""
+        content_open = '<div id="protected-content" hidden>'
+        tail_scripts = (
+            f"  <script>window.PRESENTATION_FILTER_DATA = {filter_json};</script>\n"
+            f"  <script>window.NOMINATION_API_URL = {json.dumps(NOMINATION_API_URL)};</script>\n"
+            f"  <script>{FILTER_SCRIPT}</script>\n"
+            f"  <script>{NOMINATION_SCRIPT}</script>"
         )
 
     html = f"""<!DOCTYPE html>
@@ -1270,6 +1362,11 @@ def generate_html(xml_path: Path, csv_path: Path, output_path: Path) -> None:
       font: inherit; cursor: pointer; border-radius: 6px;
     }}
     .nomination-menu-panel button:hover {{ background: #f5f5f5; }}
+    .public-notice {{
+      background: #e3f2fd; border-radius: 12px; padding: 12px 16px;
+      margin-bottom: 20px; font-size: 14px; color: #1565c0; line-height: 1.45;
+    }}
+    .public-notice a {{ color: #0d47a1; font-weight: 600; }}
   </style>
 </head>
 <body>
@@ -1284,60 +1381,9 @@ def generate_html(xml_path: Path, csv_path: Path, output_path: Path) -> None:
         <span>Kola: {escape_html(rounds)}</span>
       </div>
     </header>
-    <section class="nomination-login">
-      <p class="login-account">Pro zobrazeni vysledku se prihlaste heslem STK nebo klubu.</p>
-      <div class="nomination-login-row">
-        <label>Přihlásit jako
-          <select id="login-as"><option value="">-- vyber --</option></select>
-        </label>
-        <label>Heslo
-          <input type="password" id="login-password" autocomplete="current-password">
-        </label>
-        <button type="button" id="login-submit">Přihlásit</button>
-        <button type="button" id="login-logout" hidden>Odhlásit</button>
-        <button type="button" id="change-password-toggle" hidden>Změnit heslo</button>
-        <button type="button" id="stk-reset-toggle" hidden>Reset hesla</button>
-        <span id="login-status"></span>
-      </div>
-      <p id="forgot-password-hint" class="forgot-password-hint" hidden>
-        Zapomněli jste heslo? Kontaktujte STK:
-        <strong id="stk-contact-emails">STK</strong>
-      </p>
-      <div id="change-password-panel" class="change-password-panel" hidden>
-        <label>Stávající heslo
-          <input type="password" id="change-password-old" autocomplete="current-password">
-        </label>
-        <label>Nové heslo
-          <input type="password" id="change-password-new" autocomplete="new-password">
-        </label>
-        <label>Potvrzení
-          <input type="password" id="change-password-confirm" autocomplete="new-password">
-        </label>
-        <button type="button" id="change-password-save">Uložit heslo</button>
-        <button type="button" id="change-password-cancel">Zrušit</button>
-      </div>
-      <div id="stk-reset-panel" class="change-password-panel" hidden>
-        <label>Reset pro
-          <select id="stk-reset-role">
-            <option value="trener">Trenér klubu</option>
-            <option value="stk">STK</option>
-          </select>
-        </label>
-        <label id="stk-reset-club-wrap">Klub
-          <select id="stk-reset-club"><option value="">-- vyber --</option></select>
-        </label>
-        <label>Nové heslo
-          <input type="text" id="stk-reset-password" autocomplete="new-password">
-        </label>
-        <label>Potvrzení
-          <input type="text" id="stk-reset-confirm" autocomplete="new-password">
-        </label>
-        <button type="button" id="stk-reset-generate">Vygenerovat</button>
-        <button type="button" id="stk-reset-save">Resetovat heslo</button>
-        <button type="button" id="stk-reset-cancel">Zrušit</button>
-      </div>
-    </section>
-    <div id="protected-content" hidden>
+    {public_notice_html}
+    {login_html}
+    {content_open}
     <section class="filters">
       <div class="filters-row">
         <div class="filter-field">
@@ -1374,10 +1420,7 @@ def generate_html(xml_path: Path, csv_path: Path, output_path: Path) -> None:
     {legend_html}
     </div>
   </div>
-  <script>window.PRESENTATION_FILTER_DATA = {filter_json};</script>
-  <script>window.NOMINATION_API_URL = {json.dumps(NOMINATION_API_URL)};</script>
-  <script>{FILTER_SCRIPT}</script>
-  <script>{NOMINATION_SCRIPT}</script>
+{tail_scripts}
 </body>
 </html>
 """
@@ -1389,6 +1432,12 @@ def main() -> int:
     parser.add_argument("--input", type=Path, default=AGGREGATED_XML)
     parser.add_argument("--csv", type=Path, default=EXCEL_CSV)
     parser.add_argument("--output", type=Path, default=PRESENTATION_HTML)
+    parser.add_argument(
+        "--mode",
+        choices=("private", "public"),
+        default="private",
+        help="private: prihlaseni a nominace (Workers); public: verejny nahled (GitHub Pages)",
+    )
     args = parser.parse_args()
 
     if not args.input.is_file():
@@ -1398,8 +1447,8 @@ def main() -> int:
         print(f"Chyba: {args.csv} neexistuje, spust nejprve excel export")
         return 1
 
-    generate_html(args.input, args.csv, args.output)
-    print(f"HTML prezentace: {args.output}")
+    generate_html(args.input, args.csv, args.output, mode=args.mode)
+    print(f"HTML prezentace ({args.mode}): {args.output}")
     return 0
 
 

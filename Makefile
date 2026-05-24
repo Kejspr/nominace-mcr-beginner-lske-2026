@@ -2,10 +2,12 @@ PYTHON ?= python3
 SRC = src
 
 DOCS = docs
+WORKERS_SITE = workers-site
 PAGES_URL = https://kejspr.github.io/nominace-mcr-beginner-lske-2026/
+WORKERS_URL = https://nominace-mcr-beginner-lske-2026.jan-kaspar.workers.dev
 PUBLISH_MSG ?= Aktualizace vysledku
 
-.PHONY: help all validate fix aggregate excel verify-nominations presentation pages publish sync-trainers trainers-init
+.PHONY: help all validate fix aggregate excel verify-nominations presentation pages workers publish sync-trainers trainers-init
 
 help:
 	@echo "Nominace MCR Beginner - LSKe"
@@ -18,8 +20,9 @@ help:
 	@echo "  make aggregate            pracovni/ -> aggregated-results.xml + nomination templates"
 	@echo "  make excel                CSV export + Postupuje + nomination log"
 	@echo "  make verify-nominations   kontrola nominations/*.txt"
-	@echo "  make presentation         HTML prezentace"
-	@echo "  make pages                HTML -> docs/index.html (GitHub Pages)"
+	@echo "  make presentation         HTML s prihlasenim (Workers)"
+	@echo "  make pages                verejny HTML -> docs/index.html (GitHub Pages)"
+	@echo "  make workers              private HTML + wrangler deploy (Cloudflare)"
 	@echo "  make publish              all + verify + pages + git push (GitHub Pages)"
 	@echo "  make sync-trainers        trainers.yaml -> Cloudflare Access + Render"
 	@echo "  make trainers-init        doplni trainers.yaml o vsechny kluby z XML"
@@ -51,12 +54,18 @@ verify-nominations:
 	$(PYTHON) $(SRC)/verify_categories.py
 
 presentation:
-	$(PYTHON) $(SRC)/generate_presentation.py
+	$(PYTHON) $(SRC)/generate_presentation.py --mode private
 
-pages: presentation
+pages: excel
 	mkdir -p $(DOCS)
-	cp results-presentation.html $(DOCS)/index.html
-	@echo "GitHub Pages: $(DOCS)/index.html"
+	$(PYTHON) $(SRC)/generate_presentation.py --mode public --output $(DOCS)/index.html
+	@echo "GitHub Pages (public): $(PAGES_URL)"
+
+workers: presentation
+	mkdir -p $(WORKERS_SITE)
+	cp results-presentation.html $(WORKERS_SITE)/index.html
+	npx wrangler deploy
+	@echo "Cloudflare Workers (private): $(WORKERS_URL)"
 
 publish: all verify-nominations pages
 	@if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then \
