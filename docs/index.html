@@ -593,6 +593,7 @@
   function logout() {
     saveSession(null);
     closeAllMenus();
+    clearClubFilter();
     updateLoginUi();
   }
 
