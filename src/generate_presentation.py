@@ -179,6 +179,8 @@ NOMINATION_SCRIPT = """
   const stkResetGenerate = document.getElementById("stk-reset-generate");
   const stkResetSave = document.getElementById("stk-reset-save");
   const stkResetCancel = document.getElementById("stk-reset-cancel");
+  const protectedContent = document.getElementById("protected-content");
+  const headerStats = document.getElementById("header-stats");
 
   let loginAccountsLoaded = false;
 
@@ -257,6 +259,8 @@ NOMINATION_SCRIPT = """
   function updateLoginUi() {
     const session = loadSession();
     const loggedIn = Boolean(session && session.token);
+    if (protectedContent) protectedContent.hidden = !loggedIn;
+    if (headerStats) headerStats.hidden = !loggedIn;
     if (loginAsSelect) loginAsSelect.disabled = loggedIn;
     passwordInput.disabled = loggedIn;
     loginButton.hidden = loggedIn;
@@ -337,10 +341,18 @@ NOMINATION_SCRIPT = """
   }
 
   async function refreshPostupujeFromApi() {
+    const session = loadSession();
+    if (!session || !session.token) return;
     try {
-      const response = await fetch(apiUrl + "/api/v1/postupuje-state");
+      const response = await fetch(apiUrl + "/api/v1/postupuje-state", {
+        headers: { Authorization: "Bearer " + session.token },
+      });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) return;
+      if (!response.ok) {
+        if (response.status === 401) saveSession(null);
+        updateLoginUi();
+        return;
+      }
       const items = Array.isArray(data.items) ? data.items : [];
       items.forEach((item) => {
         const row = findResultRow(item.firstname, item.lastname, item.category);
@@ -351,6 +363,19 @@ NOMINATION_SCRIPT = """
       }
     } catch {
       // API nedostupne, zustane stav z HTML
+    }
+  }
+
+  async function validateSession() {
+    const session = loadSession();
+    if (!session || !session.token) return;
+    try {
+      const response = await fetch(apiUrl + "/api/v1/session", {
+        headers: { Authorization: "Bearer " + session.token },
+      });
+      if (!response.ok) saveSession(null);
+    } catch {
+      saveSession(null);
     }
   }
 
@@ -442,6 +467,7 @@ NOMINATION_SCRIPT = """
         email: data.email || null,
       });
       passwordInput.value = "";
+      await refreshPostupujeFromApi();
     } catch (error) {
       loginStatus.textContent = "Chyba: " + error.message;
       alert("Prihlaseni selhalo: " + error.message);
@@ -599,6 +625,7 @@ NOMINATION_SCRIPT = """
     clearClubFilter();
     hideChangePasswordPanel();
     hideStkResetPanel();
+    if (loginAsSelect) loginAsSelect.value = "";
     updateLoginUi();
   }
 
@@ -666,11 +693,13 @@ NOMINATION_SCRIPT = """
 
   window.updateNominationMenus = updateActionMenus;
   toggleStkResetClubField();
-  loadLoginAccounts().then(() => {
-    loadPasswordHelp();
-    updateLoginUi();
-    refreshPostupujeFromApi();
-  });
+  loadLoginAccounts()
+    .then(() => validateSession())
+    .then(() => {
+      loadPasswordHelp();
+      updateLoginUi();
+      return refreshPostupujeFromApi();
+    });
 })();
 """
 
@@ -1191,6 +1220,8 @@ def generate_html(xml_path: Path, csv_path: Path, output_path: Path) -> None:
     .login-account {{
       margin: 0 0 12px; font-size: 14px; color: #555; line-height: 1.4;
     }}
+    #protected-content[hidden] {{ display: none !important; }}
+    #header-stats[hidden] {{ display: none !important; }}
     .change-password-panel {{
       display: flex; flex-wrap: wrap; gap: 16px; align-items: end;
       margin-top: 14px; padding-top: 14px; border-top: 1px solid #eee;
@@ -1233,7 +1264,7 @@ def generate_html(xml_path: Path, csv_path: Path, output_path: Path) -> None:
   <div class="container">
     <header>
       <h1>{escape_html(tournament_name)}</h1>
-      <div class="stats">
+      <div class="stats" id="header-stats">
         <span>Datum: {escape_html(tournament_date)}</span>
         <span>Zavodnici: {escape_html(competitors)}</span>
         <span>Starty: {escape_html(starts)}</span>
@@ -1241,40 +1272,8 @@ def generate_html(xml_path: Path, csv_path: Path, output_path: Path) -> None:
         <span>Kola: {escape_html(rounds)}</span>
       </div>
     </header>
-    <section class="filters">
-      <div class="filters-row">
-        <div class="filter-field">
-          <label for="filter-club">Klub</label>
-          <select id="filter-club"><option value="">Vše</option></select>
-        </div>
-        <div class="filter-field">
-          <label for="filter-main">Hlavní</label>
-          <select id="filter-main"><option value="">Vše</option></select>
-        </div>
-        <div class="filter-field">
-          <label for="filter-detail">Detail</label>
-          <select id="filter-detail"><option value="">Vše</option></select>
-        </div>
-        <button type="button" id="filter-reset">Zrušit filtry</button>
-      </div>
-      <div class="filter-checkboxes">
-        <label>
-          <input type="checkbox" id="filter-only-club" disabled>
-          <span>Jen vybraný klub</span>
-        </label>
-        <label>
-          <input type="checkbox" id="filter-only-postup">
-          <span>Jen postupy</span>
-        </label>
-        <label>
-          <input type="checkbox" id="filter-only-remiza">
-          <span>Jen remízy</span>
-        </label>
-      </div>
-      <p class="filter-status" id="filter-status"></p>
-    </section>
     <section class="nomination-login">
-      <p class="login-account">Přihlášení heslem STK nebo klubu (bez e-mailového kódu).</p>
+      <p class="login-account">Pro zobrazeni vysledku se prihlaste heslem STK nebo klubu.</p>
       <div class="nomination-login-row">
         <label>Přihlásit jako
           <select id="login-as"><option value="">-- vyber --</option></select>
@@ -1326,8 +1325,42 @@ def generate_html(xml_path: Path, csv_path: Path, output_path: Path) -> None:
         <button type="button" id="stk-reset-cancel">Zrušit</button>
       </div>
     </section>
+    <div id="protected-content" hidden>
+    <section class="filters">
+      <div class="filters-row">
+        <div class="filter-field">
+          <label for="filter-club">Klub</label>
+          <select id="filter-club"><option value="">Vše</option></select>
+        </div>
+        <div class="filter-field">
+          <label for="filter-main">Hlavní</label>
+          <select id="filter-main"><option value="">Vše</option></select>
+        </div>
+        <div class="filter-field">
+          <label for="filter-detail">Detail</label>
+          <select id="filter-detail"><option value="">Vše</option></select>
+        </div>
+        <button type="button" id="filter-reset">Zrušit filtry</button>
+      </div>
+      <div class="filter-checkboxes">
+        <label>
+          <input type="checkbox" id="filter-only-club" disabled>
+          <span>Jen vybraný klub</span>
+        </label>
+        <label>
+          <input type="checkbox" id="filter-only-postup">
+          <span>Jen postupy</span>
+        </label>
+        <label>
+          <input type="checkbox" id="filter-only-remiza">
+          <span>Jen remízy</span>
+        </label>
+      </div>
+      <p class="filter-status" id="filter-status"></p>
+    </section>
     {''.join(discipline_html)}
     {legend_html}
+    </div>
   </div>
   <script>window.PRESENTATION_FILTER_DATA = {filter_json};</script>
   <script>window.NOMINATION_API_URL = {json.dumps(NOMINATION_API_URL)};</script>

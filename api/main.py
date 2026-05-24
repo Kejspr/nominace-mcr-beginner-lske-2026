@@ -446,6 +446,11 @@ def health() -> dict:
     }
 
 
+@app.get("/api/v1/session")
+def session_check(session: SessionInfo = Depends(require_session)) -> dict:
+    return {"ok": True, "role": session.role, "club": session.club}
+
+
 @app.get("/api/v1/login-accounts", response_model=LoginAccountsResponse)
 def login_accounts() -> LoginAccountsResponse:
     accounts: List[LoginAccountOption] = []
@@ -464,7 +469,10 @@ def login_accounts() -> LoginAccountsResponse:
 
 
 @app.get("/api/v1/postupuje-state", response_model=PostupujeStateResponse)
-def postupuje_state() -> PostupujeStateResponse:
+def postupuje_state(
+    session: SessionInfo = Depends(require_session),
+) -> PostupujeStateResponse:
+    del session
     return PostupujeStateResponse(items=build_postupuje_state_items())
 
 
