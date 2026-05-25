@@ -28,7 +28,7 @@ from config import (
     QUALIFYING_PLACES,
 )
 from nomination_io import format_category_name, xml_text
-from qualification import analyze_category_qualification, is_ano_value
+from qualification import is_ano_value
 from utils import normalizuj
 
 
@@ -1183,11 +1183,7 @@ def generate_html(
     disciplines: dict[str, list[str]] = defaultdict(list)
     for category_name in sorted_categories:
         category_rows = by_category[category_name]
-        positions = [row.get("Pořadí", "") for row in category_rows]
-        category_note = (
-            category_rows[0].get("Poznamka postupu", "").strip()
-            or analyze_category_qualification(positions).summary
-        )
+        category_note = category_rows[0].get("Poznamka postupu", "").strip()
         rows_html = []
         clubs_in_category = sorted({
             row.get("Klub", "").strip()
