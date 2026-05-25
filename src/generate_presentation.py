@@ -913,8 +913,7 @@ FILTER_SCRIPT = """
 
   function isPostupRow(row) {
     const postupujeValue = row.dataset.postupuje || "";
-    const krajeValue = row.dataset.postupKraje || "";
-    return postupujeValue.startsWith("ANO") || krajeValue.startsWith("ANO");
+    return postupujeValue.startsWith("ANO");
   }
 
   function isRemizaRow(row) {
