@@ -1082,7 +1082,8 @@ def build_legend_html(qualifying_places: int) -> str:
         (
             "Postupuje: ANO (remíza)",
             "Aktivní remíza na hraně postupu "
-            f"({limit}. místo): stejný počet neodmítnutých na stejné pozici.",
+            f"({limit}. místo): soupeři na stejné tabulce pozici by překročili limit "
+            f"{limit} postupujících.",
         ),
         (
             "Postupuje: NE (zájem o postup)",

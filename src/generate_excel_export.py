@@ -19,13 +19,12 @@ from pathlib import Path
 from aggregate_results import category_sort_key
 from config import AGGREGATED_XML, EXCEL_CSV
 from nomination_io import (
-    compute_postupuje_map,
     format_category_name,
     load_nominations,
     nomination_key,
     xml_text,
 )
-from qualification import analyze_category_qualification, regional_qualifier_label, tied_position_labels
+from qualification import compute_category_slots
 from utils import round_mapping_from_dates
 
 
@@ -72,7 +71,6 @@ def sort_categories(root: ET.Element) -> list[ET.Element]:
 def generate_csv(input_path: Path, output_path: Path) -> int:
     nomination_data = load_nominations(input_path, write_log=True)
     root = ET.parse(input_path).getroot()
-    postupuje_map = compute_postupuje_map(root, nomination_data)
     round_mapping = round_mapping_from_dates(collect_round_dates(root))
     row_count = 0
 
@@ -97,9 +95,20 @@ def generate_csv(input_path: Path, output_path: Path) -> int:
             kategorie1 = xml_text(category, "kategorie1")
             kategorie2 = xml_text(category, "kategorie2")
             category_name = format_category_name(disciplina, kategorie1, kategorie2)
-            positions = [xml_text(result, "position") for result in category.findall("result")]
-            tied = tied_position_labels(positions)
-            category_note = analyze_category_qualification(positions).summary
+            slot_rows = []
+            for result in category.findall("result"):
+                firstname = xml_text(result, "firstname")
+                lastname = xml_text(result, "lastname")
+                position = xml_text(result, "position")
+                key = nomination_key(firstname, lastname, disciplina, kategorie1, kategorie2)
+                slot_rows.append((
+                    key,
+                    position,
+                    key in nomination_data.declined,
+                    key in nomination_data.confirmed,
+                ))
+            slots = compute_category_slots(slot_rows)
+            category_note = slots.summary
 
             for result in category.findall("result"):
                 position = xml_text(result, "position")
@@ -121,8 +130,8 @@ def generate_csv(input_path: Path, output_path: Path) -> int:
                 for round_date in round_mapping.dates:
                     row.append(round_points.get(round_date, "-"))
                 row.append(points_total)
-                row.append(regional_qualifier_label(position, tied))
-                row.append(postupuje_map.get(key, "NE"))
+                row.append(slots.postup_kraje.get(key, "NE"))
+                row.append(slots.postupuje.get(key, "NE"))
                 row.append(category_note)
                 writer.writerow(row)
                 row_count += 1
