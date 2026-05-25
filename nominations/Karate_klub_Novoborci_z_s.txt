@@ -14,3 +14,5 @@
 # Radky zacinajici # se ignoruji.
 # Prazdne radky se ignoruji.
 
+Jiří-Jan Kašpar - KARATE AGILITY chlapci U12 (≤ 8.kyu)
+Jiří-Jan Kašpar - KIHON IDO chlapci U12 (≤ 8.kyu)
