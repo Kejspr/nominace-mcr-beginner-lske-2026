@@ -7,12 +7,13 @@ PAGES_URL = https://kejspr.github.io/nominace-mcr-beginner-lske-2026/
 WORKERS_URL = https://nominace-mcr-beginner-lske-2026.jan-kaspar.workers.dev
 PUBLISH_MSG ?= Aktualizace vysledku
 
-.PHONY: help all validate fix aggregate excel verify-nominations presentation pages workers publish deploy sync-trainers trainers-init
+.PHONY: help all validate fix aggregate excel verify-nominations presentation pages workers publish deploy vse sync-trainers trainers-init git-push
 
 help:
 	@echo "Nominace MCR Beginner - LSKe"
 	@echo ""
-	@echo "  make                  validate + fix + aggregate + excel + presentation"
+	@echo "  make deploy   (= make vse)  build + nominace + GitHub + Workers"
+	@echo "  make          jen lokalni build (bez push/deploy)"
 	@echo ""
 	@echo "Jednotlive kroky:"
 	@echo "  make validate             kontrola original/"
@@ -23,8 +24,9 @@ help:
 	@echo "  make presentation         HTML s prihlasenim (Workers)"
 	@echo "  make pages                verejny HTML -> docs/index.html (GitHub Pages)"
 	@echo "  make workers              private HTML + wrangler deploy (Cloudflare)"
-	@echo "  make publish              build + git push (GitHub Pages)"
-	@echo "  make deploy               build + git push + wrangler (vse)"
+	@echo "  make publish              build + git push (jen GitHub Pages)"
+	@echo "  make deploy               build + git push + wrangler (vse najednou)"
+	@echo "  make vse                  alias pro deploy"
 	@echo "  make sync-trainers        trainers.yaml -> Cloudflare Access + Render"
 	@echo "  make trainers-init        doplni trainers.yaml o vsechny kluby z XML"
 	@echo ""
@@ -75,14 +77,22 @@ deploy: all verify-nominations pages
 	mkdir -p $(WORKERS_SITE)
 	cp results-presentation.html $(WORKERS_SITE)/index.html
 	npx wrangler deploy
+	@echo ""
 	@echo "Cloudflare Workers (private): $(WORKERS_URL)"
 	@$(MAKE) git-push
+	@echo ""
+	@echo "Hotovo - vse nasazeno:"
+	@echo "  GitHub Pages: $(PAGES_URL)"
+	@echo "  Workers:      $(WORKERS_URL)"
+	@echo "  Render API:   automaticky z git push (~ par minut)"
+
+vse: deploy
 
 git-push:
 	@if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then \
 		echo "Chyba: neni git repo"; exit 1; \
 	fi
-	git add original/ nominations/ nominations-declined/ docs/index.html wrangler.toml
+	git add original/ nominations/ nominations-declined/ docs/index.html wrangler.toml src/ Makefile
 	@if git diff --staged --quiet; then \
 		echo "Nic k publikovani - zadne zmeny"; \
 	else \

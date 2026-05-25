@@ -146,8 +146,22 @@ LEGEND_LINK_POSTUPUJE = (
     '<a class="col-legend-link" href="#legenda-postupu" '
     'title="Vysvětlení sloupce Postupuje">Postupuje</a>'
 )
-TABLE_HEAD_POSTUP = f"<th>{LEGEND_LINK_KRAJE}</th><th>{LEGEND_LINK_POSTUPUJE}</th><th></th>"
-TABLE_HEAD_POSTUP_PUBLIC = f"<th>{LEGEND_LINK_KRAJE}</th><th>{LEGEND_LINK_POSTUPUJE}</th>"
+TABLE_HEAD_POSTUP = (
+    f"<th>{LEGEND_LINK_KRAJE}</th><th>{LEGEND_LINK_POSTUPUJE}</th>"
+    f'<th class="copy-nomination-col" title="Kopirovat radek pro nominations/*.txt">Txt</th><th></th>'
+)
+TABLE_HEAD_POSTUP_PUBLIC = (
+    f"<th>{LEGEND_LINK_KRAJE}</th><th>{LEGEND_LINK_POSTUPUJE}</th>"
+    f'<th class="copy-nomination-col" title="Kopirovat radek pro nominations/*.txt">Txt</th>'
+)
+
+COPY_NOMINATION_CELL = (
+    '<td class="copy-nomination-cell">'
+    '<button type="button" class="copy-nomination-btn" '
+    'title="Kopirovat radek pro nominations/ nebo nominations-declined/" '
+    'aria-label="Kopirovat radek nominace">Kopie</button>'
+    "</td>"
+)
 
 NOMINATION_ACTION_CELL = (
     '<td class="nomination-actions">'
@@ -785,6 +799,53 @@ NOMINATION_SCRIPT = """
 """
 
 
+COPY_NOMINATION_SCRIPT = """
+(function () {
+  function nominationLine(row) {
+    const first = row.dataset.firstname || "";
+    const last = row.dataset.lastname || "";
+    const category = row.dataset.category || "";
+    return first + " " + last + " - " + category;
+  }
+
+  async function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand("copy");
+    document.body.removeChild(textarea);
+  }
+
+  document.addEventListener("click", async (event) => {
+    const button = event.target.closest(".copy-nomination-btn");
+    if (!button) return;
+    const row = button.closest("tr[data-firstname]");
+    if (!row) return;
+    const text = nominationLine(row);
+    try {
+      await copyText(text);
+      button.classList.add("copy-nomination-ok");
+      const oldTitle = button.title;
+      button.title = "Zkopirovano";
+      setTimeout(() => {
+        button.classList.remove("copy-nomination-ok");
+        button.title = oldTitle;
+      }, 1500);
+    } catch {
+      window.prompt("Kopirovani se nezdarilo, zkopiruj rucne:", text);
+    }
+  });
+})();
+"""
+
+
 FILTER_SCRIPT = """
 (function () {
   const storageKey = "nominace-mcr-filters";
@@ -1176,6 +1237,7 @@ def generate_html(
                 f"{escape_html(postup_z_kraje)}</td>"
                 f"<td class='postupuje-cell {postup_class(postupuje, 'postupuje')}'>"
                 f"{escape_html(postupuje)}</td>"
+                f"{COPY_NOMINATION_CELL}"
                 f"{action_cell}"
                 "</tr>"
             )
@@ -1221,7 +1283,8 @@ def generate_html(
         content_open = '<div id="main-content">'
         tail_scripts = (
             f"  <script>window.PRESENTATION_FILTER_DATA = {filter_json};</script>\n"
-            f"  <script>{FILTER_SCRIPT}</script>"
+            f"  <script>{FILTER_SCRIPT}</script>\n"
+            f"  <script>{COPY_NOMINATION_SCRIPT}</script>"
         )
     else:
         login_html = LOGIN_SECTION_HTML
@@ -1230,7 +1293,8 @@ def generate_html(
             f"  <script>window.PRESENTATION_FILTER_DATA = {filter_json};</script>\n"
             f"  <script>window.NOMINATION_API_URL = {json.dumps(NOMINATION_API_URL)};</script>\n"
             f"  <script>{FILTER_SCRIPT}</script>\n"
-            f"  <script>{NOMINATION_SCRIPT}</script>"
+            f"  <script>{NOMINATION_SCRIPT}</script>\n"
+            f"  <script>{COPY_NOMINATION_SCRIPT}</script>"
         )
 
     html = f"""<!DOCTYPE html>
@@ -1353,6 +1417,14 @@ def generate_html(
       font: inherit; cursor: pointer; border-radius: 6px;
     }}
     .nomination-menu-panel button:hover {{ background: #f5f5f5; }}
+    .copy-nomination-col {{ width: 44px; text-align: center; }}
+    .copy-nomination-cell {{ width: 44px; text-align: center; }}
+    .copy-nomination-btn {{
+      min-width: 52px; height: 28px; padding: 0 6px; border: 1px solid #c5cae9; border-radius: 8px;
+      background: #eef2ff; color: #3949ab; cursor: pointer; font-size: 11px; font-weight: 600; line-height: 1;
+    }}
+    .copy-nomination-btn:hover {{ background: #e8eaf6; }}
+    .copy-nomination-btn.copy-nomination-ok {{ background: #c8e6c9; border-color: #81c784; }}
   </style>
 </head>
 <body>
