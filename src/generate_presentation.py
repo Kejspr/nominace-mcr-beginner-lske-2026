@@ -1073,12 +1073,12 @@ def build_legend_html(qualifying_places: int) -> str:
         ),
         (
             "Postupuje: ANO",
-            "Postup z pořadí (místo v top "
-            f"{limit} podle bodů). Nominace ho nemění.",
+            "Postup z pořadí nebo doplnění slotu po odmítnutí. "
+            f"V kategorii je vždy {limit} postupujících (kromě remízy na hraně).",
         ),
         (
             "Postupuje: ANO (potvrzeno)",
-            "Postup z Kraje a klub potvrdil nominaci (soubor v nominations/).",
+            "Postupuje a klub potvrdil nominaci (soubor v nominations/).",
         ),
         (
             "Postupuje: ANO (remíza)",
@@ -1087,17 +1087,17 @@ def build_legend_html(qualifying_places: int) -> str:
         ),
         (
             "Postupuje: NE (zájem o postup)",
-            "Mimo postup z pořadí, ale klub projevil zájem (nominations/) "
-            "a není volný slot.",
+            "Nepostupuje, ale klub projevil zájem (nominations/) – "
+            "informace pro ostatní trenéry, slot se plní dle pořadí.",
         ),
         (
             "Postupuje: NE (odmítnuto)",
-            "Klub nominaci odmítl (nominations-declined/). U postupujícího "
-            "uvolní slot pro zájemce.",
+            "Klub nominaci odmítl (nominations-declined/). "
+            "Slot přebírá další v pořadí.",
         ),
         (
             "Postupuje: NE",
-            "Nepostupuje (mimo postup z pořadí, bez aktivní nominace nebo slotu).",
+            "Nepostupuje (mimo postup z pořadí a bez volného slotu).",
         ),
     ]
     rows = "".join(

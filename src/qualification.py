@@ -73,60 +73,90 @@ def _postupuje_ano_label(
     return "ANO"
 
 
+def _rank_groups(
+    candidates: list[tuple[Hashable, str, bool]],
+) -> list[list[tuple[Hashable, str, bool]]]:
+    def sort_rank(position: str) -> int:
+        return parse_position_rank(position) or 9999
+
+    groups: list[list[tuple[Hashable, str, bool]]] = []
+    index = 0
+    while index < len(candidates):
+        rank = sort_rank(candidates[index][1])
+        group: list[tuple[Hashable, str, bool]] = []
+        while index < len(candidates) and sort_rank(candidates[index][1]) == rank:
+            group.append(candidates[index])
+            index += 1
+        groups.append(group)
+    return groups
+
+
 def compute_category_postupuje(
     rows: list[tuple[Hashable, str, bool, bool]],
 ) -> dict[Hashable, str]:
     """
     Postupuje pro jednu kategorii.
 
+    Vzdy doplni QUALIFYING_PLACES postupujicich podle poradi (odmitnuti vypadaji).
+    Remiza na hrane postupu muze pocet mirne prekrocit.
+    confirmed (nominations/) meni jen popisek ANO a informaci NE (zajem o postup).
+
     rows: (klic, pozice, declined, confirmed_v_nominations)
     """
     positions = [position for _, position, _, _ in rows]
     tied = tied_position_labels(positions)
     labels: dict[Hashable, str] = {}
-    waitlist: list[tuple[int, Hashable, str]] = []
 
     def sort_rank(position: str) -> int:
         return parse_position_rank(position) or 9999
 
-    active_kraje_count = sum(
-        1
-        for _, position, declined, _ in rows
-        if is_regional_qualifier(position) and not declined
-    )
-    open_slots = max(0, QUALIFYING_PLACES - active_kraje_count)
-
-    active_at_position = Counter(
-        position
-        for _, position, declined, _ in rows
-        if not declined and is_regional_qualifier(position)
-    )
-
+    candidates: list[tuple[Hashable, str, bool]] = []
     for key, position, declined, confirmed in sorted(rows, key=lambda row: sort_rank(row[1])):
         if declined:
             labels[key] = "NE (odmítnuto)"
+        else:
+            candidates.append((key, position, confirmed))
+
+    assigned_keys: set[Hashable] = set()
+    assigned_count = 0
+
+    for group in _rank_groups(candidates):
+        rank = parse_position_rank(group[0][1]) or 9999
+        group_size = len(group)
+        boundary_tie = (
+            rank == QUALIFYING_PLACES
+            and group_size > 1
+            and is_boundary_tie(group[0][1], tied)
+        )
+        need = QUALIFYING_PLACES - assigned_count
+
+        if rank <= QUALIFYING_PLACES:
+            if assigned_count >= QUALIFYING_PLACES and not boundary_tie:
+                continue
+            for key, position, confirmed in group:
+                labels[key] = _postupuje_ano_label(
+                    position,
+                    tied,
+                    group_size,
+                    confirmed,
+                )
+                assigned_keys.add(key)
+            assigned_count += group_size
             continue
 
-        if is_regional_qualifier(position):
-            labels[key] = _postupuje_ano_label(
-                position,
-                tied,
-                active_at_position[position],
-                confirmed,
-            )
+        if need <= 0:
             continue
 
-        if confirmed:
-            waitlist.append((sort_rank(position), key, position))
-        else:
-            labels[key] = "NE"
+        for key, position, confirmed in group[:need]:
+            labels[key] = "ANO (potvrzeno)" if confirmed else "ANO"
+            assigned_keys.add(key)
+        assigned_count += min(need, group_size)
 
-    for _, key, _position in sorted(waitlist, key=lambda item: item[0]):
-        if open_slots > 0:
-            labels[key] = "ANO"
-            open_slots -= 1
-        else:
-            labels[key] = "NE (zájem o postup)"
+    for group in _rank_groups(candidates):
+        for key, _position, confirmed in group:
+            if key in assigned_keys:
+                continue
+            labels[key] = "NE (zájem o postup)" if confirmed else "NE"
 
     return labels
 
@@ -170,6 +200,6 @@ def analyze_category_qualification(positions: list[str]) -> CategoryQualificatio
 
     return CategoryQualificationInfo(
         qualifier_count=qualifier_count,
-        tied_among_qualifiers=tuple(tied_ranks),
+        tied_among_qualifiers=tied_ranks,
         summary=summary,
     )

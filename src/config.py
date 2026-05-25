@@ -45,11 +45,9 @@ TOURNAMENT_TITLE = "V\u00fdsledky Krajsk\u00e9ho poh\u00e1ru beginner LSKe 2025/
 # ---------------------------------------------------------------------------
 # Nominace klubu (.txt soubory)
 # ---------------------------------------------------------------------------
-# nominations/           potvrzeni -> ANO (potvrzeno) u postupujicich z Kraje
-# nominations-declined/  odmitnuti -> NE (odmitnuto), uvolni slot pro zajemce
-# mimo postup v nominations/ -> NE (zajem o postup), po slotu ANO
-#
-# Postupuje remiza jen pri aktivni remize na hrane (2+ neodmitnuti na stejne pozici)
+# nominations/           potvrzeni -> ANO (potvrzeno) u postupujicich; jinak informace NE (zajem o postup)
+# nominations-declined/  odmitnuti -> NE (odmitnuto), dalsi v poradi doplni slot
+# Postupuje: vzdy QUALIFYING_PLACES (config) neodmitnutych dle poradi; remiza na hrane muze prekrocit
 # Soubory se vytvareji automaticky po aggregate (1 soubor na klub v obou slozkach).
 # Format radku: Jmeno Prijmeni - KARATE AGILITY chlapci U8
 # Viz hlavicka v kazdem .txt souboru.
