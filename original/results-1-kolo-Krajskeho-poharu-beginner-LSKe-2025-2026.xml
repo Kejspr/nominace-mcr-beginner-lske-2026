@@ -892,6 +892,25 @@
 			<points>24</points>
 
 		</result>
+		<result>
+
+			<position>3.</position>
+
+			<competitor_id>4668</competitor_id>
+
+			<firstname><![CDATA[Tobiáš]]></firstname>
+
+			<lastname><![CDATA[Knězů]]></lastname>
+			
+			<birthday>1365631200</birthday>
+
+			<club><![CDATA[Shotokan Sport Centrum Česká Lípa]]></club>
+
+			<club_id>2127</club_id>
+
+			<points>12</points>
+
+		</result>
 
 
 	</category>
@@ -964,6 +983,25 @@
 			<club_id>2127</club_id>
 
 			<points>12</points>
+
+		</result>
+		<result>
+
+			<position>4.</position>
+
+			<competitor_id>4670</competitor_id>
+
+			<firstname><![CDATA[Denisa]]></firstname>
+
+			<lastname><![CDATA[Šmatláková]]></lastname>
+			
+			<birthday>1397426400</birthday>
+
+			<club><![CDATA[Shotokan Sport Centrum Česká Lípa]]></club>
+
+			<club_id>2127</club_id>
+
+			<points>9</points>
 
 		</result>
 
