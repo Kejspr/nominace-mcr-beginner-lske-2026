@@ -2,21 +2,19 @@
 __pycache__/
 *.pyc
 *.pyo
+.wrangler/
 
-# Lokalne generovane vystupy (docs/index.html je verze pro web)
+# Lokalne generovane / zastarale vystupy
 results-presentation.html
 results-for-excel.csv
 aggregated-results.xml
+workers-site/
+
+# Archiv odstraneneho (obsahuje tajemstvi - necommitovat)
+_archive/
 
 # Pracovni adresar - regeneruje se pres make
 pracovni/
 
 # IDE
 *.code-workspace
-.wrangler/
-workers-site/
-
-# Trenerske udaje (hesla) - jen lokalne
-config/trainers.yaml
-config/sync.env
-data/auth_overrides.json

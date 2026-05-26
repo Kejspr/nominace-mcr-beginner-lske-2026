@@ -1,6 +1,0 @@
-name = "nominace-mcr-beginner-lske-2026"
-compatibility_date = "2024-01-01"
-account_id = "66b863ae5e6ba24f352242b533266c1f"
-
-[assets]
-directory = "./workers-site"
