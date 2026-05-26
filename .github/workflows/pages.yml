@@ -26,7 +26,7 @@ jobs:
       - name: Prepare Pages artifact
         run: |
           mkdir -p docs
-          python3 src/generate_presentation.py --mode public --output docs/index.html
+          python3 src/generate_presentation.py --output docs/index.html
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

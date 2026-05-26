@@ -23,7 +23,6 @@ from aggregate_results import category_sort_key
 from config import (
     AGGREGATED_XML,
     EXCEL_CSV,
-    NOMINATION_API_URL,
     PRESENTATION_HTML,
     QUALIFYING_PLACES,
 )
@@ -148,10 +147,6 @@ LEGEND_LINK_POSTUPUJE = (
 )
 TABLE_HEAD_POSTUP = (
     f"<th>{LEGEND_LINK_KRAJE}</th><th>{LEGEND_LINK_POSTUPUJE}</th>"
-    f'<th class="copy-nomination-col" title="Kopirovat radek pro nominations/*.txt">Txt</th><th></th>'
-)
-TABLE_HEAD_POSTUP_PUBLIC = (
-    f"<th>{LEGEND_LINK_KRAJE}</th><th>{LEGEND_LINK_POSTUPUJE}</th>"
     f'<th class="copy-nomination-col" title="Kopirovat radek pro nominations/*.txt">Txt</th>'
 )
 
@@ -162,642 +157,6 @@ COPY_NOMINATION_CELL = (
     'aria-label="Kopirovat radek nominace">Kopie</button>'
     "</td>"
 )
-
-NOMINATION_ACTION_CELL = (
-    '<td class="nomination-actions">'
-    '<div class="nomination-menu-wrap">'
-    '<button type="button" class="nomination-menu-btn" '
-    'aria-label="Akce nominace" aria-expanded="false" '
-    'aria-haspopup="true">&#8942;</button>'
-    '<div class="nomination-menu-panel" hidden>'
-    '<button type="button" data-action="confirm">Potvrdit nominaci</button>'
-    '<button type="button" data-action="decline">Odmítnout</button>'
-    '<button type="button" data-action="clear">Zrušit potvrzení / zájem o postup</button>'
-    "</div></div></td>"
-)
-
-LOGIN_SECTION_HTML = """
-    <section class="nomination-login">
-      <p class="login-account">Pro zobrazeni vysledku se prihlaste heslem STK nebo klubu.</p>
-      <div class="nomination-login-row">
-        <label>Přihlásit jako
-          <select id="login-as"><option value="">-- vyber --</option></select>
-        </label>
-        <label>Heslo
-          <input type="password" id="login-password" autocomplete="current-password">
-        </label>
-        <button type="button" id="login-submit">Přihlásit</button>
-        <button type="button" id="login-logout" hidden>Odhlásit</button>
-        <button type="button" id="change-password-toggle" hidden>Změnit heslo</button>
-        <button type="button" id="stk-reset-toggle" hidden>Reset hesla</button>
-        <span id="login-status"></span>
-      </div>
-      <p id="forgot-password-hint" class="forgot-password-hint" hidden>
-        Zapomněli jste heslo? Kontaktujte STK:
-        <strong id="stk-contact-emails">STK</strong>
-      </p>
-      <div id="change-password-panel" class="change-password-panel" hidden>
-        <label>Stávající heslo
-          <input type="password" id="change-password-old" autocomplete="current-password">
-        </label>
-        <label>Nové heslo
-          <input type="password" id="change-password-new" autocomplete="new-password">
-        </label>
-        <label>Potvrzení
-          <input type="password" id="change-password-confirm" autocomplete="new-password">
-        </label>
-        <button type="button" id="change-password-save">Uložit heslo</button>
-        <button type="button" id="change-password-cancel">Zrušit</button>
-      </div>
-      <div id="stk-reset-panel" class="change-password-panel" hidden>
-        <label>Reset pro
-          <select id="stk-reset-role">
-            <option value="trener">Trenér klubu</option>
-            <option value="stk">STK</option>
-          </select>
-        </label>
-        <label id="stk-reset-club-wrap">Klub
-          <select id="stk-reset-club"><option value="">-- vyber --</option></select>
-        </label>
-        <label>Nové heslo
-          <input type="text" id="stk-reset-password" autocomplete="new-password">
-        </label>
-        <label>Potvrzení
-          <input type="text" id="stk-reset-confirm" autocomplete="new-password">
-        </label>
-        <button type="button" id="stk-reset-generate">Vygenerovat</button>
-        <button type="button" id="stk-reset-save">Resetovat heslo</button>
-        <button type="button" id="stk-reset-cancel">Zrušit</button>
-      </div>
-    </section>
-"""
-
-
-NOMINATION_SCRIPT = """
-(function () {
-  const apiUrl = window.NOMINATION_API_URL;
-  const sessionKey = "nominace-mcr-session";
-  const filterData = window.PRESENTATION_FILTER_DATA;
-
-  const loginAsSelect = document.getElementById("login-as");
-  const passwordInput = document.getElementById("login-password");
-  const loginButton = document.getElementById("login-submit");
-  const logoutButton = document.getElementById("login-logout");
-  const loginStatus = document.getElementById("login-status");
-  const changePasswordToggle = document.getElementById("change-password-toggle");
-  const changePasswordPanel = document.getElementById("change-password-panel");
-  const changePasswordOld = document.getElementById("change-password-old");
-  const changePasswordNew = document.getElementById("change-password-new");
-  const changePasswordConfirm = document.getElementById("change-password-confirm");
-  const changePasswordSave = document.getElementById("change-password-save");
-  const changePasswordCancel = document.getElementById("change-password-cancel");
-  const forgotPasswordHint = document.getElementById("forgot-password-hint");
-  const stkContactEmails = document.getElementById("stk-contact-emails");
-  const stkResetToggle = document.getElementById("stk-reset-toggle");
-  const stkResetPanel = document.getElementById("stk-reset-panel");
-  const stkResetRole = document.getElementById("stk-reset-role");
-  const stkResetClubWrap = document.getElementById("stk-reset-club-wrap");
-  const stkResetClub = document.getElementById("stk-reset-club");
-  const stkResetPassword = document.getElementById("stk-reset-password");
-  const stkResetConfirm = document.getElementById("stk-reset-confirm");
-  const stkResetGenerate = document.getElementById("stk-reset-generate");
-  const stkResetSave = document.getElementById("stk-reset-save");
-  const stkResetCancel = document.getElementById("stk-reset-cancel");
-  const protectedContent = document.getElementById("protected-content");
-  const headerStats = document.getElementById("header-stats");
-
-  let loginAccountsLoaded = false;
-
-  function loadSession() {
-    try {
-      return JSON.parse(sessionStorage.getItem(sessionKey) || "null");
-    } catch {
-      return null;
-    }
-  }
-
-  function saveSession(session) {
-    if (session) {
-      sessionStorage.setItem(sessionKey, JSON.stringify(session));
-    } else {
-      sessionStorage.removeItem(sessionKey);
-    }
-  }
-
-  function canEditRow(row, session) {
-    if (!session || !session.token) return false;
-    if (session.role === "stk") return true;
-    return row.dataset.club === session.club;
-  }
-
-  function highlightMyAthletes(session) {
-    document.querySelectorAll("tbody tr[data-firstname]").forEach((row) => {
-      row.classList.remove("row-my-club");
-    });
-    if (!session || session.role !== "trener" || !session.club) return;
-    document.querySelectorAll("tbody tr[data-firstname]").forEach((row) => {
-      if (row.dataset.club === session.club) {
-        row.classList.add("row-my-club");
-      }
-    });
-  }
-
-  function hideChangePasswordPanel() {
-    if (!changePasswordPanel) return;
-    changePasswordPanel.hidden = true;
-    if (changePasswordOld) changePasswordOld.value = "";
-    if (changePasswordNew) changePasswordNew.value = "";
-    if (changePasswordConfirm) changePasswordConfirm.value = "";
-  }
-
-  function hideStkResetPanel() {
-    if (!stkResetPanel) return;
-    stkResetPanel.hidden = true;
-    if (stkResetPassword) stkResetPassword.value = "";
-    if (stkResetConfirm) stkResetConfirm.value = "";
-    if (stkResetClub) stkResetClub.value = "";
-    if (stkResetRole) stkResetRole.value = "trener";
-    toggleStkResetClubField();
-  }
-
-  function toggleStkResetClubField() {
-    if (!stkResetRole || !stkResetClubWrap) return;
-    const isTrener = stkResetRole.value === "trener";
-    stkResetClubWrap.hidden = !isTrener;
-    if (!isTrener && stkResetClub) stkResetClub.value = "";
-  }
-
-  function updateForgotPasswordHint() {
-    if (!forgotPasswordHint) return;
-    const session = loadSession();
-    const loggedIn = Boolean(session && session.token);
-    const account = loginAsSelect ? loginAsSelect.value : "";
-    const isTrener = account && account !== "stk";
-    forgotPasswordHint.hidden = loggedIn || !isTrener;
-  }
-
-  function resetSavedFilters() {
-    if (typeof window.resetPresentationFilters === "function") {
-      window.resetPresentationFilters();
-    }
-  }
-
-  function updateLoginUi() {
-    const session = loadSession();
-    const loggedIn = Boolean(session && session.token);
-    if (protectedContent) protectedContent.hidden = !loggedIn;
-    if (headerStats) headerStats.hidden = !loggedIn;
-    if (loginAsSelect) loginAsSelect.disabled = loggedIn;
-    passwordInput.disabled = loggedIn;
-    loginButton.hidden = loggedIn;
-    loginButton.disabled = loggedIn || !loginAsSelect || !loginAsSelect.value;
-    logoutButton.hidden = !loggedIn;
-    if (changePasswordToggle) changePasswordToggle.hidden = !loggedIn;
-    if (stkResetToggle) stkResetToggle.hidden = !loggedIn || session.role !== "stk";
-    if (!loggedIn) hideChangePasswordPanel();
-    if (!loggedIn || session.role !== "stk") hideStkResetPanel();
-
-    if (loggedIn) {
-      const label = session.role === "stk"
-        ? "STK (vsechny kluby)"
-        : (session.club || "trener");
-      loginStatus.textContent = "Prihlasen: " + label;
-      highlightMyAthletes(session);
-    } else {
-      loginStatus.textContent = "";
-      highlightMyAthletes(null);
-    }
-    updateForgotPasswordHint();
-    updateActionMenus();
-  }
-
-  function updateActionMenus() {
-    const session = loadSession();
-    const loggedIn = Boolean(session && session.token);
-
-    document.querySelectorAll("tbody tr[data-firstname]").forEach((row) => {
-      const cell = row.querySelector(".nomination-actions");
-      const wrap = row.querySelector(".nomination-menu-wrap");
-      if (!cell) return;
-      const allowed = canEditRow(row, session);
-      cell.hidden = !allowed;
-      if (!allowed && wrap) {
-        closeMenu(wrap);
-      }
-    });
-
-    document.querySelectorAll("table thead th:last-child").forEach((header) => {
-      header.hidden = !loggedIn;
-    });
-  }
-
-  function closeMenu(wrap) {
-    if (!wrap) return;
-    const panel = wrap.querySelector(".nomination-menu-panel");
-    const button = wrap.querySelector(".nomination-menu-btn");
-    if (panel) panel.hidden = true;
-    if (button) button.setAttribute("aria-expanded", "false");
-  }
-
-  function closeAllMenus() {
-    document.querySelectorAll(".nomination-menu-wrap").forEach(closeMenu);
-  }
-
-  function setRowPostup(row, postupuje, postupKraje) {
-    row.dataset.postupuje = postupuje;
-    row.dataset.postupKraje = postupKraje;
-    const krajeCell = row.querySelector(".postup-z-kraje-cell");
-    const postupujeCell = row.querySelector(".postupuje-cell");
-    if (krajeCell) {
-      krajeCell.textContent = postupKraje;
-      krajeCell.className = "postup-z-kraje-cell " + (postupKraje.startsWith("ANO") ? "postup-z-kraje-ano" : "postup-z-kraje-ne");
-    }
-    if (postupujeCell) {
-      postupujeCell.textContent = postupuje;
-      postupujeCell.className = "postupuje-cell " + (postupuje.startsWith("ANO") ? "postupuje-ano" : "postupuje-ne");
-    }
-  }
-
-  function findResultRow(firstname, lastname, category) {
-    return Array.from(document.querySelectorAll("tbody tr[data-firstname]")).find(
-      (row) =>
-        row.dataset.firstname === firstname &&
-        row.dataset.lastname === lastname &&
-        row.dataset.category === category
-    );
-  }
-
-  async function refreshPostupujeFromApi() {
-    const session = loadSession();
-    if (!session || !session.token) return;
-    try {
-      const response = await fetch(apiUrl + "/api/v1/postupuje-state", {
-        headers: { Authorization: "Bearer " + session.token },
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        if (response.status === 401) saveSession(null);
-        updateLoginUi();
-        return;
-      }
-      const items = Array.isArray(data.items) ? data.items : [];
-      items.forEach((item) => {
-        const row = findResultRow(item.firstname, item.lastname, item.category);
-        if (row) setRowPostup(row, item.postupuje, item.postup_kraje);
-      });
-      if (typeof window.applyPresentationFilters === "function") {
-        window.applyPresentationFilters();
-      }
-    } catch {
-      // API nedostupne, zustane stav z HTML
-    }
-  }
-
-  async function validateSession() {
-    const session = loadSession();
-    if (!session || !session.token) return;
-    try {
-      const response = await fetch(apiUrl + "/api/v1/session", {
-        headers: { Authorization: "Bearer " + session.token },
-      });
-      if (!response.ok) saveSession(null);
-    } catch {
-      saveSession(null);
-    }
-  }
-
-  function formatApiError(data, status) {
-    if (typeof data.detail === "string") return data.detail;
-    if (Array.isArray(data.detail)) {
-      return data.detail.map((item) => item.msg || JSON.stringify(item)).join("; ");
-    }
-    return "HTTP " + status;
-  }
-
-  async function sendNomination(row, action) {
-    const session = loadSession();
-    if (!session || !session.token) {
-      alert("Nejdriv se prihlas.");
-      return;
-    }
-    if (!canEditRow(row, session)) {
-      alert("Nemas opravneni pro tento radek.");
-      return;
-    }
-
-    const payload = {
-      firstname: row.dataset.firstname,
-      lastname: row.dataset.lastname,
-      category: row.dataset.category,
-      action: action,
-    };
-
-    loginStatus.textContent = "Ukladam...";
-    try {
-      const response = await fetch(apiUrl + "/api/v1/nomination", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer " + session.token,
-        },
-        body: JSON.stringify(payload),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (response.status === 401) {
-        saveSession(null);
-        updateLoginUi();
-        alert("Platnost prihlaseni vyprsela. Prihlaste se znovu.");
-        return;
-      }
-      if (!response.ok) {
-        throw new Error(formatApiError(data, response.status));
-      }
-      setRowPostup(row, data.postupuje, data.postup_kraje);
-      loginStatus.textContent = "Ulozeno.";
-      closeAllMenus();
-      if (typeof window.applyPresentationFilters === "function") {
-        window.applyPresentationFilters();
-      }
-    } catch (error) {
-      loginStatus.textContent = "Chyba: " + error.message;
-      alert("Chyba: " + error.message);
-    }
-    updateLoginUi();
-  }
-
-  async function login() {
-    const account = loginAsSelect ? loginAsSelect.value : "";
-    const password = passwordInput.value;
-    if (!account) {
-      alert("Vyber STK nebo klub.");
-      return;
-    }
-    if (!password) {
-      alert("Zadej heslo.");
-      return;
-    }
-
-    const body = { password: password };
-    if (account !== "stk") {
-      body.club = account;
-    }
-
-    loginStatus.textContent = "Prihlasuji...";
-    try {
-      const response = await fetch(apiUrl + "/api/v1/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(formatApiError(data, response.status));
-      }
-      saveSession({
-        token: data.token,
-        role: data.role,
-        club: data.club || null,
-        email: data.email || null,
-      });
-      passwordInput.value = "";
-      resetSavedFilters();
-      await refreshPostupujeFromApi();
-    } catch (error) {
-      loginStatus.textContent = "Chyba: " + error.message;
-      alert("Prihlaseni selhalo: " + error.message);
-      return;
-    }
-    updateLoginUi();
-  }
-
-  async function changePassword() {
-    const session = loadSession();
-    if (!session || !session.token) return;
-
-    const oldPassword = changePasswordOld ? changePasswordOld.value : "";
-    const newPassword = changePasswordNew ? changePasswordNew.value : "";
-    const confirmPassword = changePasswordConfirm ? changePasswordConfirm.value : "";
-
-    if (!oldPassword || !newPassword) {
-      alert("Vypln stavajici a nove heslo.");
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      alert("Nove heslo a potvrzeni se neshoduji.");
-      return;
-    }
-
-    loginStatus.textContent = "Menim heslo...";
-    try {
-      const response = await fetch(apiUrl + "/api/v1/change-password", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer " + session.token,
-        },
-        body: JSON.stringify({
-          old_password: oldPassword,
-          new_password: newPassword,
-        }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(formatApiError(data, response.status));
-      }
-      hideChangePasswordPanel();
-      loginStatus.textContent = "Heslo zmeneno.";
-    } catch (error) {
-      loginStatus.textContent = "Chyba: " + error.message;
-      alert("Zmena hesla selhala: " + error.message);
-    }
-  }
-
-  function generateTemporaryPassword() {
-    const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
-    let value = "";
-    const random = window.crypto && window.crypto.getRandomValues
-      ? window.crypto.getRandomValues(new Uint8Array(10))
-      : null;
-    for (let i = 0; i < 10; i += 1) {
-      const index = random ? random[i] % chars.length : Math.floor(Math.random() * chars.length);
-      value += chars.charAt(index);
-    }
-    return value;
-  }
-
-  async function resetPasswordForAccount() {
-    const session = loadSession();
-    if (!session || session.role !== "stk") return;
-
-    const targetRole = stkResetRole ? stkResetRole.value : "trener";
-    const club = stkResetClub ? stkResetClub.value.trim() : "";
-    const newPassword = stkResetPassword ? stkResetPassword.value : "";
-    const confirmPassword = stkResetConfirm ? stkResetConfirm.value : "";
-
-    if (targetRole === "trener" && !club) {
-      alert("Vyber klub.");
-      return;
-    }
-    if (!newPassword) {
-      alert("Zadej nove heslo.");
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      alert("Nove heslo a potvrzeni se neshoduji.");
-      return;
-    }
-
-    loginStatus.textContent = "Resetuji heslo...";
-    try {
-      const response = await fetch(apiUrl + "/api/v1/reset-password", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer " + session.token,
-        },
-        body: JSON.stringify({
-          target_role: targetRole,
-          club: targetRole === "trener" ? club : null,
-          new_password: newPassword,
-        }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(formatApiError(data, response.status));
-      }
-      hideStkResetPanel();
-      const label = targetRole === "stk" ? "STK" : club;
-      loginStatus.textContent = "Heslo resetovano: " + label + ".";
-      alert("Nove heslo pro " + label + ": " + newPassword + "\\n\\nPreddej trenerovi a nech ho heslo zmenit.");
-    } catch (error) {
-      loginStatus.textContent = "Chyba: " + error.message;
-      alert("Reset hesla selhal: " + error.message);
-    }
-  }
-
-  async function loadLoginAccounts() {
-    if (!loginAsSelect) return;
-    try {
-      const response = await fetch(apiUrl + "/api/v1/login-accounts");
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) return;
-      const accounts = Array.isArray(data.accounts) ? data.accounts : [];
-      loginAsSelect.innerHTML = '<option value="">-- vyber --</option>';
-      accounts.forEach((account) => {
-        const option = document.createElement("option");
-        option.value = account.value;
-        option.textContent = account.label;
-        loginAsSelect.appendChild(option);
-      });
-      loginAccountsLoaded = accounts.length > 0;
-    } catch {
-      loginAccountsLoaded = false;
-    }
-    updateLoginUi();
-  }
-
-  async function loadPasswordHelp() {
-    if (!stkContactEmails) return;
-    try {
-      const response = await fetch(apiUrl + "/api/v1/password-help");
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) return;
-      const emails = Array.isArray(data.stk_emails) ? data.stk_emails : [];
-      if (emails.length) {
-        stkContactEmails.textContent = emails.join(", ");
-      } else {
-        stkContactEmails.textContent = "STK (kontakt v sekci)";
-      }
-    } catch {
-      stkContactEmails.textContent = "STK";
-    }
-  }
-
-  function logout() {
-    saveSession(null);
-    closeAllMenus();
-    hideChangePasswordPanel();
-    hideStkResetPanel();
-    if (loginAsSelect) loginAsSelect.value = "";
-    resetSavedFilters();
-    updateLoginUi();
-  }
-
-  filterData.clubs.forEach((club) => {
-    if (!stkResetClub) return;
-    const resetOption = document.createElement("option");
-    resetOption.value = club;
-    resetOption.textContent = club;
-    stkResetClub.appendChild(resetOption);
-  });
-
-  document.querySelectorAll(".nomination-menu-wrap").forEach((wrap) => {
-    const button = wrap.querySelector(".nomination-menu-btn");
-    const panel = wrap.querySelector(".nomination-menu-panel");
-    if (!button || !panel) return;
-
-    button.addEventListener("click", (event) => {
-      event.stopPropagation();
-      const willOpen = panel.hidden;
-      closeAllMenus();
-      panel.hidden = !willOpen;
-      button.setAttribute("aria-expanded", willOpen ? "true" : "false");
-    });
-
-    panel.querySelectorAll("[data-action]").forEach((item) => {
-      item.addEventListener("click", () => {
-        const row = wrap.closest("tr");
-        if (row) sendNomination(row, item.dataset.action);
-      });
-    });
-  });
-
-  document.addEventListener("click", closeAllMenus);
-  if (loginAsSelect) {
-    loginAsSelect.addEventListener("change", updateForgotPasswordHint);
-  }
-  loginButton.addEventListener("click", login);
-  logoutButton.addEventListener("click", logout);
-  if (changePasswordToggle && changePasswordPanel) {
-    changePasswordToggle.addEventListener("click", () => {
-      changePasswordPanel.hidden = !changePasswordPanel.hidden;
-    });
-  }
-  if (changePasswordSave) changePasswordSave.addEventListener("click", changePassword);
-  if (changePasswordCancel) changePasswordCancel.addEventListener("click", hideChangePasswordPanel);
-  if (stkResetToggle && stkResetPanel) {
-    stkResetToggle.addEventListener("click", () => {
-      hideChangePasswordPanel();
-      stkResetPanel.hidden = !stkResetPanel.hidden;
-    });
-  }
-  if (stkResetRole) stkResetRole.addEventListener("change", toggleStkResetClubField);
-  if (stkResetGenerate) {
-    stkResetGenerate.addEventListener("click", () => {
-      const value = generateTemporaryPassword();
-      if (stkResetPassword) stkResetPassword.value = value;
-      if (stkResetConfirm) stkResetConfirm.value = value;
-    });
-  }
-  if (stkResetSave) stkResetSave.addEventListener("click", resetPasswordForAccount);
-  if (stkResetCancel) stkResetCancel.addEventListener("click", hideStkResetPanel);
-  passwordInput.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") login();
-  });
-
-  window.updateNominationMenus = updateActionMenus;
-  toggleStkResetClubField();
-  loadLoginAccounts()
-    .then(() => validateSession())
-    .then(() => {
-      if (loadSession()?.token) resetSavedFilters();
-      loadPasswordHelp();
-      updateLoginUi();
-      return refreshPostupujeFromApi();
-    });
-})();
-"""
-
 
 COPY_NOMINATION_SCRIPT = """
 (function () {
@@ -1118,10 +477,7 @@ def generate_html(
     xml_path: Path,
     csv_path: Path,
     output_path: Path,
-    *,
-    mode: str = "private",
 ) -> None:
-    public = mode == "public"
     root = ET.parse(xml_path).getroot()
     _, csv_rows = load_csv_rows(csv_path)
     enrichment = build_xml_enrichment(xml_path)
@@ -1214,8 +570,6 @@ def generate_html(
 
             rounds_text = extra.get("rounds") or rounds_from_csv_row(row, round_columns)
 
-            action_cell = "" if public else NOMINATION_ACTION_CELL
-
             rows_html.append(
                 f"<tr data-club=\"{escape_html(club)}\""
                 f" data-firstname=\"{escape_html(firstname)}\""
@@ -1234,7 +588,6 @@ def generate_html(
                 f"<td class='postupuje-cell {postup_class(postupuje, 'postupuje')}'>"
                 f"{escape_html(postupuje)}</td>"
                 f"{COPY_NOMINATION_CELL}"
-                f"{action_cell}"
                 "</tr>"
             )
 
@@ -1255,7 +608,7 @@ def generate_html(
             "<thead><tr>"
             "<th>Poz.</th><th>Jmeno</th><th>Klub</th><th>Body</th><th>Medaile</th>"
             "<th>Kola</th>"
-            f"{TABLE_HEAD_POSTUP_PUBLIC if public else TABLE_HEAD_POSTUP}"
+            f"{TABLE_HEAD_POSTUP}"
             "</tr></thead>"
             f"<tbody>{''.join(rows_html)}</tbody></table></section>"
         )
@@ -1274,24 +627,13 @@ def generate_html(
             "</section>"
         )
 
-    if public:
-        login_html = ""
-        content_open = '<div id="main-content">'
-        tail_scripts = (
-            f"  <script>window.PRESENTATION_FILTER_DATA = {filter_json};</script>\n"
-            f"  <script>{FILTER_SCRIPT}</script>\n"
-            f"  <script>{COPY_NOMINATION_SCRIPT}</script>"
-        )
-    else:
-        login_html = LOGIN_SECTION_HTML
-        content_open = '<div id="protected-content" hidden>'
-        tail_scripts = (
-            f"  <script>window.PRESENTATION_FILTER_DATA = {filter_json};</script>\n"
-            f"  <script>window.NOMINATION_API_URL = {json.dumps(NOMINATION_API_URL)};</script>\n"
-            f"  <script>{FILTER_SCRIPT}</script>\n"
-            f"  <script>{NOMINATION_SCRIPT}</script>\n"
-            f"  <script>{COPY_NOMINATION_SCRIPT}</script>"
-        )
+    login_html = ""
+    content_open = '<div id="main-content">'
+    tail_scripts = (
+        f"  <script>window.PRESENTATION_FILTER_DATA = {filter_json};</script>\n"
+        f"  <script>{FILTER_SCRIPT}</script>\n"
+        f"  <script>{COPY_NOMINATION_SCRIPT}</script>"
+    )
 
     html = f"""<!DOCTYPE html>
 <html lang="cs">
@@ -1340,9 +682,9 @@ def generate_html(
     .filter-checkboxes input {{ width: 16px; height: 16px; cursor: pointer; }}
     .filter-checkboxes input:disabled + span {{ color: #999; cursor: not-allowed; }}
     .filter-status {{ margin-top: 12px; font-size: 14px; color: #555; }}
-    tr.club-highlight, tr.row-my-club {{ background: #e8f5e9; }}
-    tr.club-highlight td, tr.row-my-club td {{ border-bottom-color: #c8e6c9; }}
-    tr.club-highlight td:nth-child(3), tr.row-my-club td:nth-child(3) {{ font-weight: 600; color: #2e7d32; }}
+    tr.club-highlight {{ background: #e8f5e9; }}
+    tr.club-highlight td {{ border-bottom-color: #c8e6c9; }}
+    tr.club-highlight td:nth-child(3) {{ font-weight: 600; color: #2e7d32; }}
     .legend {{
       background: white; border-radius: 12px; padding: 20px 24px;
       margin-top: 32px; margin-bottom: 24px;
@@ -1354,65 +696,6 @@ def generate_html(
     .legend dl {{ margin: 0; display: grid; gap: 12px; }}
     .legend dt {{ font-weight: 600; font-size: 14px; color: #222; }}
     .legend dd {{ margin: 4px 0 0; font-size: 14px; color: #444; line-height: 1.45; }}
-    .nomination-login {{
-      background: white; border-radius: 12px; padding: 16px 20px;
-      margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    }}
-    .nomination-login-row {{
-      display: flex; flex-wrap: wrap; gap: 16px; align-items: end;
-    }}
-    .nomination-login-row label {{
-      display: flex; flex-direction: column; gap: 4px; min-width: 160px; flex: 1;
-      font-size: 12px; font-weight: 600; color: #555; text-transform: uppercase;
-    }}
-    .nomination-login-row select,
-    .nomination-login-row input,
-    .nomination-login-row button {{
-      font: inherit; padding: 8px 10px; border: 1px solid #ccc; border-radius: 8px; background: white;
-    }}
-    .nomination-login-row button {{ cursor: pointer; flex: 0; min-width: auto; text-transform: none; }}
-    #login-status {{ font-size: 14px; color: #555; align-self: center; flex: 2; min-width: 200px; text-transform: none; font-weight: normal; }}
-    .login-account {{
-      margin: 0 0 12px; font-size: 14px; color: #555; line-height: 1.4;
-    }}
-    #protected-content[hidden] {{ display: none !important; }}
-    #header-stats[hidden] {{ display: none !important; }}
-    .change-password-panel {{
-      display: flex; flex-wrap: wrap; gap: 16px; align-items: end;
-      margin-top: 14px; padding-top: 14px; border-top: 1px solid #eee;
-    }}
-    .change-password-panel[hidden] {{ display: none !important; }}
-    .change-password-panel label {{
-      display: flex; flex-direction: column; gap: 4px; min-width: 160px; flex: 1;
-      font-size: 12px; font-weight: 600; color: #555; text-transform: uppercase;
-    }}
-    .change-password-panel input,
-    .change-password-panel button {{
-      font: inherit; padding: 8px 10px; border: 1px solid #ccc; border-radius: 8px; background: white;
-    }}
-    .change-password-panel button {{ cursor: pointer; flex: 0; min-width: auto; text-transform: none; }}
-    .forgot-password-hint {{
-      margin: 12px 0 0; font-size: 14px; color: #555; line-height: 1.45;
-    }}
-    .forgot-password-hint[hidden] {{ display: none !important; }}
-    .nomination-actions {{ width: 44px; text-align: center; position: relative; }}
-    .nomination-actions[hidden] {{ display: none; }}
-    .nomination-menu-btn {{
-      width: 32px; height: 32px; border: 1px solid #c5cae9; border-radius: 8px;
-      background: #eef2ff; color: #3949ab; cursor: pointer; font-size: 18px; line-height: 1;
-    }}
-    .nomination-menu-btn:hover {{ background: #e8eaf6; }}
-    .nomination-menu-panel {{
-      position: absolute; right: 0; top: calc(100% + 4px); z-index: 20;
-      min-width: 180px; background: white; border: 1px solid #ddd; border-radius: 8px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.12); display: flex; flex-direction: column; padding: 4px;
-    }}
-    .nomination-menu-panel[hidden] {{ display: none !important; }}
-    .nomination-menu-panel button {{
-      border: none; background: none; text-align: left; padding: 8px 12px;
-      font: inherit; cursor: pointer; border-radius: 6px;
-    }}
-    .nomination-menu-panel button:hover {{ background: #f5f5f5; }}
     .copy-nomination-col {{ width: 44px; text-align: center; }}
     .copy-nomination-cell {{ width: 44px; text-align: center; }}
     .copy-nomination-btn {{
@@ -1485,12 +768,6 @@ def main() -> int:
     parser.add_argument("--input", type=Path, default=AGGREGATED_XML)
     parser.add_argument("--csv", type=Path, default=EXCEL_CSV)
     parser.add_argument("--output", type=Path, default=PRESENTATION_HTML)
-    parser.add_argument(
-        "--mode",
-        choices=("private", "public"),
-        default="private",
-        help="private: prihlaseni a nominace (Workers); public: verejny nahled (GitHub Pages)",
-    )
     args = parser.parse_args()
 
     if not args.input.is_file():
@@ -1500,8 +777,8 @@ def main() -> int:
         print(f"Chyba: {args.csv} neexistuje, spust nejprve excel export")
         return 1
 
-    generate_html(args.input, args.csv, args.output, mode=args.mode)
-    print(f"HTML prezentace ({args.mode}): {args.output}")
+    generate_html(args.input, args.csv, args.output)
+    print(f"HTML prezentace: {args.output}")
     return 0
 
 

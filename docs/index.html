@@ -45,9 +45,9 @@
     .filter-checkboxes input { width: 16px; height: 16px; cursor: pointer; }
     .filter-checkboxes input:disabled + span { color: #999; cursor: not-allowed; }
     .filter-status { margin-top: 12px; font-size: 14px; color: #555; }
-    tr.club-highlight, tr.row-my-club { background: #e8f5e9; }
-    tr.club-highlight td, tr.row-my-club td { border-bottom-color: #c8e6c9; }
-    tr.club-highlight td:nth-child(3), tr.row-my-club td:nth-child(3) { font-weight: 600; color: #2e7d32; }
+    tr.club-highlight { background: #e8f5e9; }
+    tr.club-highlight td { border-bottom-color: #c8e6c9; }
+    tr.club-highlight td:nth-child(3) { font-weight: 600; color: #2e7d32; }
     .legend {
       background: white; border-radius: 12px; padding: 20px 24px;
       margin-top: 32px; margin-bottom: 24px;
@@ -59,65 +59,6 @@
     .legend dl { margin: 0; display: grid; gap: 12px; }
     .legend dt { font-weight: 600; font-size: 14px; color: #222; }
     .legend dd { margin: 4px 0 0; font-size: 14px; color: #444; line-height: 1.45; }
-    .nomination-login {
-      background: white; border-radius: 12px; padding: 16px 20px;
-      margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    }
-    .nomination-login-row {
-      display: flex; flex-wrap: wrap; gap: 16px; align-items: end;
-    }
-    .nomination-login-row label {
-      display: flex; flex-direction: column; gap: 4px; min-width: 160px; flex: 1;
-      font-size: 12px; font-weight: 600; color: #555; text-transform: uppercase;
-    }
-    .nomination-login-row select,
-    .nomination-login-row input,
-    .nomination-login-row button {
-      font: inherit; padding: 8px 10px; border: 1px solid #ccc; border-radius: 8px; background: white;
-    }
-    .nomination-login-row button { cursor: pointer; flex: 0; min-width: auto; text-transform: none; }
-    #login-status { font-size: 14px; color: #555; align-self: center; flex: 2; min-width: 200px; text-transform: none; font-weight: normal; }
-    .login-account {
-      margin: 0 0 12px; font-size: 14px; color: #555; line-height: 1.4;
-    }
-    #protected-content[hidden] { display: none !important; }
-    #header-stats[hidden] { display: none !important; }
-    .change-password-panel {
-      display: flex; flex-wrap: wrap; gap: 16px; align-items: end;
-      margin-top: 14px; padding-top: 14px; border-top: 1px solid #eee;
-    }
-    .change-password-panel[hidden] { display: none !important; }
-    .change-password-panel label {
-      display: flex; flex-direction: column; gap: 4px; min-width: 160px; flex: 1;
-      font-size: 12px; font-weight: 600; color: #555; text-transform: uppercase;
-    }
-    .change-password-panel input,
-    .change-password-panel button {
-      font: inherit; padding: 8px 10px; border: 1px solid #ccc; border-radius: 8px; background: white;
-    }
-    .change-password-panel button { cursor: pointer; flex: 0; min-width: auto; text-transform: none; }
-    .forgot-password-hint {
-      margin: 12px 0 0; font-size: 14px; color: #555; line-height: 1.45;
-    }
-    .forgot-password-hint[hidden] { display: none !important; }
-    .nomination-actions { width: 44px; text-align: center; position: relative; }
-    .nomination-actions[hidden] { display: none; }
-    .nomination-menu-btn {
-      width: 32px; height: 32px; border: 1px solid #c5cae9; border-radius: 8px;
-      background: #eef2ff; color: #3949ab; cursor: pointer; font-size: 18px; line-height: 1;
-    }
-    .nomination-menu-btn:hover { background: #e8eaf6; }
-    .nomination-menu-panel {
-      position: absolute; right: 0; top: calc(100% + 4px); z-index: 20;
-      min-width: 180px; background: white; border: 1px solid #ddd; border-radius: 8px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.12); display: flex; flex-direction: column; padding: 4px;
-    }
-    .nomination-menu-panel[hidden] { display: none !important; }
-    .nomination-menu-panel button {
-      border: none; background: none; text-align: left; padding: 8px 12px;
-      font: inherit; cursor: pointer; border-radius: 6px;
-    }
-    .nomination-menu-panel button:hover { background: #f5f5f5; }
     .copy-nomination-col { width: 44px; text-align: center; }
     .copy-nomination-cell { width: 44px; text-align: center; }
     .copy-nomination-btn {

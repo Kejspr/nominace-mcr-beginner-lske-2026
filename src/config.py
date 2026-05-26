@@ -32,12 +32,8 @@ AGGREGATED_XML = BASE_DIR / "aggregated-results.xml"
 # Tabulka pro Excel / STK (vystup excel)
 EXCEL_CSV = BASE_DIR / "results-for-excel.csv"
 
-# HTML prezentace pro jednani (vystup presentation)
-PRESENTATION_HTML = BASE_DIR / "results-presentation.html"
-
-# Render API pro klikaci nominace z HTML (Cloudflare Workers + CORS)
-NOMINATION_API_URL = "https://nominace-mcr-beginner-lske-2026.onrender.com"
-PRESENTATION_ORIGIN = "https://nominace-mcr-beginner-lske-2026.jan-kaspar.workers.dev"
+# HTML prezentace (GitHub Pages)
+PRESENTATION_HTML = BASE_DIR / "docs" / "index.html"
 
 # Nadpis HTML / aggregated-results.xml
 TOURNAMENT_TITLE = "V\u00fdsledky Krajsk\u00e9ho poh\u00e1ru beginner LSKe 2025/2026"
