@@ -14,3 +14,4 @@
 # Radky zacinajici # se ignoruji.
 # Prazdne radky se ignoruji.
 
+Zuzana Kárová - KATA BEGINNER dívky U10 (7.Kyu)
