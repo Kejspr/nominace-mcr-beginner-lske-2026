@@ -20,3 +20,7 @@ Adam Česák - KIHON IDO chlapci U10 (≤ 8.kyu)
 Ondřej Hrabica - KUMITE BALLOON chlapci U8 (≤ 8.kyu)
 Matouš Hůlka - KUMITE BALLOON chlapci U10 (≤ 8.kyu)
 Tomáš Neumann - KUMITE BALLOON chlapci U10 (≤ 8.kyu)
+
+Ondřej Hrabica - KARATE AGILITY chlapci U8 (≤ 8.kyu)
+Matouš Hůlka - KIHON IDO chlapci U10 (≤ 8.kyu)
+Tomáš Neumann - KARATE AGILITY chlapci U10 (≤ 8.kyu)
