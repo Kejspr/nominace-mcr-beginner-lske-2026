@@ -5,33 +5,41 @@ DOCS = docs
 PAGES_URL = https://kejspr.github.io/nominace-mcr-beginner-lske-2026/
 PUBLISH_MSG ?= Aktualizace vysledku
 
-.PHONY: help build pages deploy deploy-pages validate fix aggregate excel verify-nominations git-push publish all vse
+.PHONY: help deploy deploy-site build pages validate fix aggregate excel verify-nominations git-push publish all vse deploy-pages
 
 help:
 	@echo "Nominace MCR Beginner - LSKe (GitHub Pages)"
 	@echo ""
-	@echo "  make build          data: validate + fix + aggregate + excel"
-	@echo "  make pages          build + HTML -> docs/index.html"
-	@echo "  make deploy         alias pro deploy-pages"
-	@echo "  make deploy-pages   build + git push -> GitHub Pages"
+	@echo "  make deploy         kompletni WF: validate -> fix -> aggregate -> deploy-site + push"
+	@echo "  make deploy-site    excel + HTML + verify-nominations (bez git push)"
 	@echo ""
 	@echo "Jednotlive kroky:"
 	@echo "  make validate             kontrola original/"
 	@echo "  make fix                  original/ -> pracovni/"
 	@echo "  make aggregate            pracovni/ -> aggregated-results.xml"
 	@echo "  make excel                CSV + Postupuje + nomination log"
+	@echo "  make pages                HTML -> docs/index.html (vyzaduje excel)"
 	@echo "  make verify-nominations   kontrola nominations/*.txt"
 	@echo ""
+	@echo "Volitelne:"
+	@echo "  make build          jen data: validate + fix + aggregate + excel"
+	@echo ""
 	@echo "Zpetna kompatibilita:"
-	@echo "  make publish = make deploy-pages"
-	@echo "  make vse     = make deploy-pages"
-	@echo "  make all     = make pages"
+	@echo "  make deploy-pages = make deploy"
+	@echo "  make publish      = make deploy"
+	@echo "  make vse          = make deploy"
+
+deploy: validate fix aggregate deploy-site git-push
+	@echo ""
+	@echo "Deploy hotovo: $(PAGES_URL) (po dokonceni Actions)"
+
+deploy-site: excel pages verify-nominations
 
 build: validate fix aggregate excel
 	@echo ""
 	@echo "Build hotovo: pracovni/ + aggregated-results.xml + CSV"
 
-pages: build
+pages:
 	mkdir -p $(DOCS)
 	$(PYTHON) $(SRC)/generate_presentation.py --output $(DOCS)/index.html
 	@echo ""
@@ -52,12 +60,6 @@ excel:
 verify-nominations:
 	$(PYTHON) $(SRC)/verify_categories.py
 
-deploy-pages: pages verify-nominations git-push
-	@echo ""
-	@echo "GitHub Pages: $(PAGES_URL) (po dokonceni Actions)"
-
-deploy: deploy-pages
-
 git-push:
 	@if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then \
 		echo "Chyba: neni git repo"; exit 1; \
@@ -71,10 +73,12 @@ git-push:
 		echo "Odeslano na GitHub."; \
 	fi
 
-publish: deploy-pages
+deploy-pages: deploy
 
-vse: deploy-pages
+publish: deploy
 
-all: pages
+vse: deploy
 
-.DEFAULT_GOAL := build
+all: build pages
+
+.DEFAULT_GOAL := help

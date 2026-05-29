@@ -20,13 +20,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build data
-        run: make validate fix aggregate excel
-
-      - name: Prepare Pages artifact
-        run: |
-          mkdir -p docs
-          python3 src/generate_presentation.py --output docs/index.html
+      - name: Complete workflow
+        run: make validate fix aggregate deploy-site
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
