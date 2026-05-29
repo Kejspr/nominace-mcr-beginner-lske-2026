@@ -14,3 +14,4 @@
 # Radky zacinajici # se ignoruji.
 # Prazdne radky se ignoruji.
 
+Zuzana Kárová - KIHON IDO dívky U10 (≤ 8.kyu)
