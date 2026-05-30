@@ -14,3 +14,18 @@
 # Radky zacinajici # se ignoruji.
 # Prazdne radky se ignoruji.
 
+Sebastián Nevrlý - KARATE AGILITY chlapci U8 (≤ 8.kyu)   
+Pavel Veštík - KARATE AGILITY chlapci U8 (≤ 8.kyu)           
+Šimon Obermajer - KARATE AGILITY chlapci U8 (≤ 8.kyu)  
+Oleksandra Kotsofan - KARATE AGILITY dívky U10 (≤ 8.kyu) 
+Tobiáš Starý - KIHON IDO chlapci U14 (≤ 8.kyu) 
+David Čonka - KUMITE BALLOON chlapci 12 (≤ 8.kyu) 
+Phuc-Tiep Nguyen - KATA BEGINNER chlapci U12 (7.Kyu) 
+Přemysl Šanda - KATA BEGINNER chlapci U14 (7.Kyu) 
+Yeva Onatska - KATA BEGINNER dívky U14 (7.Kyu) 
+Marie Dalíková - KATA BEGINNER dívky U14 (7.Kyu) 
+Jeva Onacka - KATA BEGINNER dívky U14 (7.Kyu) 
+Phuc-Tiep Nguyen - KUMITE BEGINNER chlapci U12 (7.Kyu) 
+Eliška Lebedová - KUMITE BEGINNER dívky U12 (7.Kyu) 
+Yeva Onatska - KUMITE BEGINNER dívky U14 (7.Kyu) 
+Jeva Onacka - KUMITE BEGINNER dívky U14 (7.Kyu) 

@@ -14,5 +14,10 @@
 # Radky zacinajici # se ignoruji.
 # Prazdne radky se ignoruji.
 
-Václav Chadraba - KUMITE BALLOON chlapci 12 (≤ 8.kyu)
+
+František Lánský - KARATE AGILITY chlapci U8 (≤ 8.kyu)
+Zoe Hanzlová - KARATE AGILITY dívky U8 (≤ 8.kyu) 
+Patricie Čonková - KARATE AGILITY dívky U10 (≤ 8.kyu) 
+Bibiana Krejčíková - KUMITE BALLOON dívky U10 (≤ 8.kyu)
+Václav Chadraba - KUMITE BALLOON chlapci 12 (≤ 8.kyu) 
 
