@@ -15,3 +15,4 @@
 # Prazdne radky se ignoruji.
 
 Zuzana Kárová - KATA BEGINNER dívky U10 (7.Kyu)
+Tommy Tran - KIHON IDO chlapci U14 (≤ 8.kyu)
