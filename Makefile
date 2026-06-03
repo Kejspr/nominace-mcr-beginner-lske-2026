@@ -5,7 +5,7 @@ DOCS = docs
 PAGES_URL = https://kejspr.github.io/nominace-mcr-beginner-lske-2026/
 PUBLISH_MSG ?= Aktualizace vysledku
 
-.PHONY: help deploy deploy-site build pages validate fix aggregate excel verify-nominations git-push publish all vse deploy-pages
+.PHONY: help deploy deploy-site build pages validate fix aggregate excel verify-nominations final-export git-push publish all vse deploy-pages
 
 help:
 	@echo "Nominace MCR Beginner - LSKe (GitHub Pages)"
@@ -18,6 +18,7 @@ help:
 	@echo "  make fix                  original/ -> pracovni/"
 	@echo "  make aggregate            pracovni/ -> aggregated-results.xml"
 	@echo "  make excel                CSV + Postupuje + nomination log"
+	@echo "  make final-export         konecny seznam postupujicich (CSV, TSV, TXT, HTML)"
 	@echo "  make pages                HTML -> docs/index.html (vyzaduje excel)"
 	@echo "  make verify-nominations   kontrola nominations/*.txt"
 	@echo ""
@@ -56,6 +57,9 @@ aggregate:
 
 excel:
 	$(PYTHON) $(SRC)/generate_excel_export.py
+
+final-export: excel
+	$(PYTHON) $(SRC)/generate_final_export.py
 
 verify-nominations:
 	$(PYTHON) $(SRC)/verify_categories.py

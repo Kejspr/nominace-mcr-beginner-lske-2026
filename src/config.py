@@ -32,6 +32,13 @@ AGGREGATED_XML = BASE_DIR / "aggregated-results.xml"
 # Tabulka pro Excel / STK (vystup excel)
 EXCEL_CSV = BASE_DIR / "results-for-excel.csv"
 
+# Konecny seznam postupujicich po nominacich (vystup final-export)
+FINAL_EXPORT_CSV = BASE_DIR / "final-postupujici.csv"
+FINAL_EXPORT_TSV = BASE_DIR / "final-postupujici.tsv"
+FINAL_EXPORT_TXT = BASE_DIR / "final-postupujici.txt"
+FINAL_EXPORT_HTML = BASE_DIR / "final-postupujici.html"
+FINAL_EXPORT_TITLE = "Konecny seznam postupujicich - MCR Beginner LSKe 2025/2026"
+
 # HTML prezentace (GitHub Pages)
 PRESENTATION_HTML = BASE_DIR / "docs" / "index.html"
 

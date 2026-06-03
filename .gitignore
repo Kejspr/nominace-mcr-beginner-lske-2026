@@ -7,6 +7,10 @@ __pycache__/
 # Lokalne generovane / zastarale vystupy
 results-presentation.html
 results-for-excel.csv
+final-postupujici.csv
+final-postupujici.tsv
+final-postupujici.txt
+final-postupujici.html
 aggregated-results.xml
 workers-site/
 
